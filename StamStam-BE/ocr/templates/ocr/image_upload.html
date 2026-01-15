@@ -1,0 +1,82 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+  <div>
+      <a href="/">Return to home</a>
+      <a href="/get_params">get parameters</a>
+  </div>
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="file" name="image">
+    <button type="submit">Upload</button>
+  </form>
+
+  {% if cheshbonit %}
+  {% autoescape off %}
+    <p>{{ cheshbonit|linebreaks }}</p>
+  {% endautoescape %}
+  {% endif %}
+
+  {% if answers %}
+  <table>
+  <tbody>
+  {% autoescape off %}
+    {% for key, value in answers.items %}
+    <tr>
+        <td> Key: {{ key }} </td>
+        <td> Value: {{ value }} </td>
+    </tr>
+    {% endfor %}
+  {% endautoescape %}
+  </tbody>
+  </table>
+  {% endif %}
+
+    {% if uploaded_file_url %}
+        <table>
+      <thead>
+      <th>file</th>
+      <th>ocr</th>
+      <th>nums</th>
+      </thead>
+      <tbody>
+      <tr>
+          <td>
+
+                <p>File uploaded at: <a href="{% static uploaded_file_url %}">{{ uploaded_file_url }}</a></p>
+                <img src="{% static uploaded_file_url %}" height="1000" width="800">
+              <!--<img src="/{{ uploaded_file_url }}" height="1000" width="800">-->
+              <!--<img src="{{ uploaded_file_url }}" height="1000" width="800">-->
+
+          </td>
+          <td>
+              {% if text %}
+              {% autoescape off %}
+                <p>{{ text|linebreaks }}</p>
+              {% endautoescape %}
+              {% endif %}
+          </td>
+          <td>
+              {% if nums %}
+              {% autoescape off %}
+                <p>{{ nums|linebreaks }}</p>
+              {% endautoescape %}
+              {% endif %}
+          </td>
+      </tr>
+      </tbody>
+  </table>
+    {% endif %}
+
+
+
+
+
+</body>
+</html>
