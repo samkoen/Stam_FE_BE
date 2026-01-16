@@ -13,160 +13,9 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, backend_dir)
 
-from BE_Model_Cursor.utils.rectangle_sorter import sort_rectangles_by_lines
+from BE_Model_Cursor.utils.contour_detector import detect_and_order_contours
 from BE_Model_Cursor.models.letter_predictor import predict_letters, letter_code_to_hebrew
 from BE_Model_Cursor.comparison.paracha_matcher import detect_paracha
-
-
-def union_rect(a, b):
-    """Combine deux rectangles en un rectangle englobant"""
-    x = min(a[0], b[0])
-    y = min(a[1], b[1])
-    w = max(a[0] + a[2], b[0] + b[2]) - x
-    h = max(a[1] + a[3], b[1] + b[3]) - y
-    return (x, y, w, h)
-
-
-def intersection_rect(a, b):
-    """Calcule l'intersection de deux rectangles"""
-    x = max(a[0], b[0])
-    y = max(a[1], b[1])
-    w = min(a[0] + a[2], b[0] + b[2]) - x
-    h = min(a[1] + a[3], b[1] + b[3]) - y
-    if w < 0 or h < 0:
-        return None
-    return (x, y, w, h)
-
-
-def is_included(a, b):
-    """Vérifie si le rectangle b est entièrement inclus dans le rectangle a"""
-    return (a[0] <= b[0] and b[0] + b[2] <= a[0] + a[2] and
-            a[1] <= b[1] and b[1] + b[3] <= a[1] + a[3])
-
-
-def follow_rect(rect1, rect2, width_mean):
-    """
-    Vérifie si rect2 suit rect1 (même ligne mais peut-être pas de chevauchement vertical)
-    Utilisé pour détecter des lettres comme ק qui ont des parties séparées
-    """
-    s = max(rect1[1], rect2[1])
-    h = min(rect1[1] + rect1[3], rect2[1] + rect2[3]) - s
-    # Si il y a un chevauchement vertical même minime et les rectangles sont proches horizontalement
-    if h > 1 and (rect2[0] - (rect1[0] + rect1[2])) < width_mean * 8:
-        return h
-    return None
-
-
-def combine_horizontal_overlaps(rects):
-    """
-    Combine les rectangles qui se chevauchent beaucoup horizontalement
-    (similaire à is_horizontal_include de fix_issues_box)
-    """
-    if len(rects) < 2:
-        return rects
-    
-    i = 0
-    result = []
-    
-    while i < len(rects):
-        current = rects[i]
-        combined = False
-        
-        # Chercher un rectangle suivant qui se chevauche beaucoup
-        for j in range(i + 1, len(rects)):
-            other = rects[j]
-            
-            # Calculer le chevauchement horizontal
-            x = max(current[0], other[0])
-            w = min(current[0] + current[2], other[0] + other[2]) - x
-            
-            if w > 0:
-                small_w = min(current[2], other[2])
-                
-                # Si le chevauchement est > 70% de la largeur du plus petit
-                if w > 0.7 * small_w:
-                    # Vérifier qu'ils sont sur la même ligne (chevauchement vertical)
-                    s = max(current[1], other[1])
-                    h_overlap = min(current[1] + current[3], other[1] + other[3]) - s
-                    if h_overlap > 0:
-                        # Combiner les rectangles
-                        current = union_rect(current, other)
-                        # Supprimer other de la liste
-                        rects.pop(j)
-                        combined = True
-                        break
-        
-        result.append(current)
-        i += 1
-    
-    return result
-
-
-def group_letters_by_line(rects):
-    """
-    Groupe les rectangles en lignes et combine ceux qui font partie de la même lettre
-    (similaire à sort_contour mais simplifié)
-    """
-    if not rects:
-        return rects
-    
-    # Trier par position x décroissante
-    width_mean = sum(r[2] for r in rects) / len(rects) if rects else 50
-    rects = sorted(rects, key=lambda r: r[0] + r[2], reverse=True)
-    
-    lines = [rects[0:1]]  # Première ligne avec le premier rectangle
-    
-    for i in range(1, len(rects)):
-        current_rect = rects[i]
-        added = False
-        
-        # Chercher dans les lignes existantes (derniers rectangles de chaque ligne)
-        for line_idx, line in enumerate(lines):
-            # Vérifier avec les derniers rectangles de la ligne
-            for j in range(max(0, len(line) - 3), len(line)):
-                last_rect = line[j]
-                h = follow_rect(current_rect, last_rect, width_mean)
-                
-                if h:
-                    # Vérifier que current n'est pas inclus dans un rectangle existant
-                    is_included_in_line = False
-                    for existing_rect in line:
-                        if is_included(existing_rect, current_rect):
-                            is_included_in_line = True
-                            break
-                    
-                    if not is_included_in_line:
-                        lines[line_idx].append(current_rect)
-                        added = True
-                        break
-            
-            if added:
-                break
-        
-        if not added:
-            # Nouvelle ligne
-            lines.append([current_rect])
-    
-    # Retourner la liste aplatie
-    return [rect for line in lines for rect in line]
-
-
-def remove_small_included_rects(rects):
-    """Supprime les rectangles qui sont entièrement inclus dans d'autres"""
-    if len(rects) < 2:
-        return rects
-    
-    result = []
-    for i, rect_a in enumerate(rects):
-        is_included_flag = False
-        for j, rect_b in enumerate(rects):
-            if i != j and is_included(rect_b, rect_a):
-                is_included_flag = True
-                break
-        if not is_included_flag:
-            result.append(rect_a)
-    
-    return result
 
 
 def crop_parchment(image):
@@ -252,61 +101,14 @@ def detect_letters(image, weight_file=None, overflow_dir=None):
     if overflow_dir is None:
         overflow_dir = os.path.join(backend_dir_path, 'overflow')
     
-    # Convertir en niveaux de gris
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
-    # Appliquer un flou gaussien pour réduire le bruit
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    
-    # Seuillage adaptatif pour binariser l'image
-    # On inverse pour avoir les lettres en blanc sur fond noir
-    thresh = cv2.adaptiveThreshold(
-        blurred,
-        255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY_INV,
-        11,
-        2
-    )
-    
-    # Trouver les contours
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    # Filtrer les contours par taille (similaire à get_contour)
-    MIN_CONTOUR_AREA = 50
-    valid_rects = []
-    
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        if area < MIN_CONTOUR_AREA:
-            continue
-        
-        x, y, w, h = cv2.boundingRect(contour)
-        
-        # Filtres similaires à get_contour: w > 5, h > 8, w < 1000
-        if w > 5 and h > 8 and w < 1000:
-            # Filtrer par ratio raisonnable
-            aspect_ratio = w / h if h > 0 else 0
-            if 0.1 < aspect_ratio < 5.0:
-                valid_rects.append((x, y, w, h))
-    
-    # Supprimer les rectangles inclus dans d'autres
-    valid_rects = remove_small_included_rects(valid_rects)
-    
-    # Grouper les rectangles par ligne (pour combiner les parties de ק, ה, etc.)
-    valid_rects = group_letters_by_line(valid_rects)
-    
-    # Combiner les rectangles qui se chevauchent horizontalement
-    valid_rects = combine_horizontal_overlaps(valid_rects)
+    # Détecter et ordonner les contours (sans prédiction des lettres)
+    ordered_rects = detect_and_order_contours(image, min_contour_area=50)
     
     # Si aucun rectangle valide, retourner l'image originale
-    if len(valid_rects) == 0:
+    if len(ordered_rects) == 0:
         _, buffer = cv2.imencode('.jpg', image)
         image_base64 = base64.b64encode(buffer)
         return image_base64, "Aucune lettre détectée"
-    
-    # Ordonner les rectangles de droite à gauche et de haut en bas (ordre hébreu)
-    ordered_rects = sort_rectangles_by_lines(valid_rects)
     
     # Identifier les lettres avec le modèle ML
     letter_codes = predict_letters(image, ordered_rects, weight_file)
