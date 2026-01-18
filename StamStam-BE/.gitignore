@@ -7,3 +7,9 @@ requirements.txt
 overflow/
 figure/
 all_letters/
+logs/
+*.log
+# Fichiers de configuration avec variables sensibles
+.env
+.env.local
+.env.production

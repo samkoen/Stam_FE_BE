@@ -8,6 +8,7 @@ from BE_Model_Cursor.models.letter_predictor import predict_letters, letter_code
 from BE_Model_Cursor.corrections.correction_manager import CorrectionManager
 from BE_Model_Cursor.corrections.base_correction import CorrectionResult
 from BE_Model_Cursor.corrections.fusion_correction import FusionCorrection
+from BE_Model_Cursor.utils.logger import get_logger
 
 
 def align_text_with_reference(detected_text, reference_text, letter_rects, letter_codes, image, weight_file, debug=False):
@@ -36,15 +37,18 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
     correction_manager = CorrectionManager(image, weight_file)
     fusion_correction = FusionCorrection(image, weight_file)  # Pour les fusions simples
     
+    # Initialiser le logger
+    logger = get_logger(__name__, debug=debug)
+    
     # Utiliser une boucle while pour recalculer le diff après chaque correction
     max_iterations = 100
     iteration = 0
     
     if debug:
-        print(f"\n[align_text_with_reference] Début de l'alignement avec CorrectionManager")
-        print(f"  Texte de référence (longueur: {len(reference_text)}): {reference_text[:100]}...")
-        print(f"  Texte détecté initial (longueur: {len(detected_text)}): {detected_text[:100]}...")
-        print(f"  Nombre de rectangles: {len(corrected_rects)}")
+        logger.debug(f"Début de l'alignement avec CorrectionManager")
+        logger.debug(f"Texte de référence (longueur: {len(reference_text)}): {reference_text[:100]}...")
+        logger.debug(f"Texte détecté initial (longueur: {len(detected_text)}): {detected_text[:100]}...")
+        logger.debug(f"Nombre de rectangles: {len(corrected_rects)}")
     
     while iteration < max_iterations:
         iteration += 1
@@ -56,9 +60,9 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
         dmp.diff_cleanupSemantic(diff)
         
         if debug and iteration == 1:
-            print(f"\n[align_text_with_reference] Diff initial calculé avec {len(diff)} opérations")
+            logger.debug(f"Diff initial calculé avec {len(diff)} opérations")
         elif debug and iteration > 1:
-            print(f"\n[align_text_with_reference] Itération {iteration}: Diff recalculé avec {len(diff)} opérations après correction")
+            logger.debug(f"Itération {iteration}: Diff recalculé avec {len(diff)} opérations après correction")
         
         # Parcourir les différences pour identifier les problèmes
         rect_idx = 0
@@ -69,7 +73,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                 if debug:
                     detected_char = detected_text_normalized[rect_idx] if rect_idx < len(detected_text_normalized) else None
                     detected_char_hebrew = letter_code_to_hebrew(corrected_codes[rect_idx]) if rect_idx < len(corrected_codes) else None
-                    print(f"  [Comparaison] Position {rect_idx}: ✓ BONNE LETTRE '{detected_char_hebrew}' (code: {corrected_codes[rect_idx] if rect_idx < len(corrected_codes) else 'N/A'})")
+                    logger.debug(f"[Comparaison] Position {rect_idx}: ✓ BONNE LETTRE '{detected_char_hebrew}' (code: {corrected_codes[rect_idx] if rect_idx < len(corrected_codes) else 'N/A'})")
                 
                 rect_idx += len(text)
                 
@@ -87,7 +91,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                     if debug:
                         detected_char = added_text[0] if added_text else None
                         detected_char_hebrew = letter_code_to_hebrew(corrected_codes[rect_idx]) if rect_idx < len(corrected_codes) else None
-                        print(f"\n  [Comparaison] Position {rect_idx}: ✗ LETTRE FAUSSE - détecté '{detected_char_hebrew}' au lieu de '{expected_char}'")
+                        logger.debug(f"[Comparaison] Position {rect_idx}: ✗ LETTRE FAUSSE - détecté '{detected_char_hebrew}' au lieu de '{expected_char}'")
                     
                     # CAS 1: N rectangles détectés au lieu d'1 lettre attendue
                     if len(added_text) >= 2 and len(expected_text) == 1 and rect_idx + len(added_text) - 1 < len(corrected_rects):
@@ -95,7 +99,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                         detected_chars = added_text
                         
                         if debug:
-                            print(f"  → 1ère tentative: Fusion de {len(detected_chars)} rectangles pour obtenir '{expected_char}'...")
+                            logger.debug(f"→ 1ère tentative: Fusion de {len(detected_chars)} rectangles pour obtenir '{expected_char}'...")
                         
                         # Utiliser CorrectionManager pour tenter la fusion
                         result = correction_manager.try_correct_error(
@@ -112,7 +116,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                         if result and result.success:
                             if debug:
                                 new_char = letter_code_to_hebrew(result.new_codes[0]) if result.new_codes else None
-                                print(f"    ✓ SUCCÈS: Fusion réussie, '{detected_chars}' -> '{new_char}'")
+                                logger.debug(f"✓ SUCCÈS: Fusion réussie, '{detected_chars}' -> '{new_char}'")
                             
                             _apply_correction_result(corrected_rects, corrected_codes, rect_idx, result)
                             corrections_applied.append({
@@ -123,7 +127,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                             diff_changed = True
                             break  # Recalculer le diff
                         elif debug:
-                            print(f"    ✗ ÉCHEC: Fusion de {len(detected_chars)} rectangles n'a pas donné '{expected_char}'")
+                            logger.debug(f"✗ ÉCHEC: Fusion de {len(detected_chars)} rectangles n'a pas donné '{expected_char}'")
                     
                     # CAS 2: 1 rectangle détecté au lieu d'1 lettre attendue (extension hauteur ou réunification)
                     elif len(added_text) == 1 and len(expected_text) == 1 and rect_idx < len(corrected_rects):
@@ -131,7 +135,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                         detected_char = added_text[0]
                         
                         if debug:
-                            print(f"  → 1ère tentative: Correction avec CorrectionManager (extension hauteur ou réunification)...")
+                            logger.debug(f"→ 1ère tentative: Correction avec CorrectionManager (extension hauteur ou réunification)...")
                         
                         # Sauvegarder l'état initial
                         saved_rects = corrected_rects[:]
@@ -151,7 +155,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                         if result and result.success:
                             if debug:
                                 new_char = letter_code_to_hebrew(result.new_codes[0]) if result.new_codes else None
-                                print(f"    ✓ SUCCÈS: Correction réussie, '{detected_char}' -> '{new_char}'")
+                                logger.debug(f"✓ SUCCÈS: Correction réussie, '{detected_char}' -> '{new_char}'")
                             
                             _apply_correction_result(corrected_rects, corrected_codes, rect_idx, result)
                             corrections_applied.append({
@@ -166,7 +170,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                             corrected_rects[:] = saved_rects
                             corrected_codes[:] = saved_codes
                             if debug:
-                                print(f"    ✗ ÉCHEC: Correction n'a pas fonctionné")
+                                logger.debug(f"✗ ÉCHEC: Correction n'a pas fonctionné")
                     
                     # Avancer dans le diff pour passer l'opération d'addition aussi
                     diff_idx += 1
@@ -176,8 +180,8 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                     expected_char = text[0] if text else None
                     
                     if debug:
-                        print(f"\n  [Comparaison] Position {rect_idx}: ⚠ LETTRE MANQUANTE '{expected_char}'")
-                        print(f"  → 1ère tentative: Correction avec CorrectionManager (MissingLetterCorrection)...")
+                        logger.debug(f"[Comparaison] Position {rect_idx}: ⚠ LETTRE MANQUANTE '{expected_char}'")
+                        logger.debug(f"→ 1ère tentative: Correction avec CorrectionManager (MissingLetterCorrection)...")
                     
                     # Utiliser CorrectionManager pour tenter la correction
                     result = correction_manager.try_correct_error(
@@ -193,7 +197,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                     if result and result.success:
                         if debug:
                             new_char = letter_code_to_hebrew(result.new_codes[0]) if result.new_codes else None
-                            print(f"    ✓ SUCCÈS: Lettre manquante trouvée, -> '{new_char}'")
+                            logger.debug(f"✓ SUCCÈS: Lettre manquante trouvée, -> '{new_char}'")
                         
                         _apply_correction_result(corrected_rects, corrected_codes, rect_idx, result)
                         corrections_applied.append({
@@ -204,12 +208,12 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                         diff_changed = True
                         break  # Recalculer le diff
                     elif debug:
-                        print(f"    ✗ ÉCHEC: Lettre manquante '{expected_char}' non trouvée")
+                        logger.debug(f"✗ ÉCHEC: Lettre manquante '{expected_char}' non trouvée")
                 
             elif op == 1:  # Ajouté dans détecté = lettre en trop
                 if debug:
                     detected_char = letter_code_to_hebrew(corrected_codes[rect_idx]) if rect_idx < len(corrected_codes) else None
-                    print(f"\n  [Comparaison] Position {rect_idx}: + LETTRE EN TROP '{detected_char}'")
+                    logger.debug(f"[Comparaison] Position {rect_idx}: + LETTRE EN TROP '{detected_char}'")
                 
                 # Essayer fusion simple avec FusionCorrection (fusionner 2 rectangles en 1)
                 # Tester les deux possibilités : fusionner avec i-1 ou avec i+1
@@ -221,7 +225,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                         detected_chars_im1_i = (letter_code_to_hebrew(corrected_codes[rect_idx - 1]) if rect_idx - 1 < len(corrected_codes) else '') + detected_char
                         
                         if debug:
-                            print(f"  → 1ère tentative: Fusion avec FusionCorrection (rect_idx-1 + rect_idx = '{detected_chars_im1_i}')...")
+                            logger.debug(f"→ 1ère tentative: Fusion avec FusionCorrection (rect_idx-1 + rect_idx = '{detected_chars_im1_i}')...")
                         
                         result = fusion_correction.try_correct(
                             rect_idx=rect_idx - 1,
@@ -237,7 +241,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                         if result and result.success:
                             if debug:
                                 fused_char = letter_code_to_hebrew(result.new_codes[0]) if result.new_codes else None
-                                print(f"    ✓ SUCCÈS: Fusion rect_idx-1 + rect_idx réussie -> '{fused_char}'")
+                                logger.debug(f"✓ SUCCÈS: Fusion rect_idx-1 + rect_idx réussie -> '{fused_char}'")
                             
                             _apply_correction_result(corrected_rects, corrected_codes, rect_idx - 1, result)
                             corrections_applied.append({
@@ -249,7 +253,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                             diff_changed = True
                             break  # Recalculer le diff
                         elif debug:
-                            print(f"    ✗ ÉCHEC: Fusion rect_idx-1 + rect_idx n'a pas fonctionné")
+                            logger.debug(f"✗ ÉCHEC: Fusion rect_idx-1 + rect_idx n'a pas fonctionné")
                     
                     # Tentative 2: Fusionner rect_idx et rect_idx+1
                     if rect_idx + 1 < len(corrected_rects):
@@ -257,7 +261,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                         detected_chars_i_i1 = detected_char + detected_char_next
                         
                         if debug:
-                            print(f"  → 2ème tentative: Fusion avec FusionCorrection (rect_idx + rect_idx+1 = '{detected_chars_i_i1}')...")
+                            logger.debug(f"→ 2ème tentative: Fusion avec FusionCorrection (rect_idx + rect_idx+1 = '{detected_chars_i_i1}')...")
                         
                         result = fusion_correction.try_correct(
                             rect_idx=rect_idx,
@@ -273,7 +277,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                         if result and result.success:
                             if debug:
                                 fused_char = letter_code_to_hebrew(result.new_codes[0]) if result.new_codes else None
-                                print(f"    ✓ SUCCÈS: Fusion rect_idx + rect_idx+1 réussie -> '{fused_char}'")
+                                logger.debug(f"✓ SUCCÈS: Fusion rect_idx + rect_idx+1 réussie -> '{fused_char}'")
                             
                             _apply_correction_result(corrected_rects, corrected_codes, rect_idx, result)
                             corrections_applied.append({
@@ -285,7 +289,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                             diff_changed = True
                             break  # Recalculer le diff
                         elif debug:
-                            print(f"    ✗ ÉCHEC: Fusion rect_idx + rect_idx+1 n'a pas fonctionné")
+                            logger.debug(f"✗ ÉCHEC: Fusion rect_idx + rect_idx+1 n'a pas fonctionné")
                 
                 # Essayer split simple
                 if rect_idx < len(corrected_rects):
@@ -300,7 +304,7 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
                         if debug:
                             char1 = letter_code_to_hebrew(split_result[0]['code'])
                             char2 = letter_code_to_hebrew(split_result[1]['code'])
-                            print(f"  → 2ème tentative: Split simple réussi -> '{char1}' + '{char2}'")
+                            logger.debug(f"→ 2ème tentative: Split simple réussi -> '{char1}' + '{char2}'")
                         
                         corrected_rects[rect_idx] = split_result[0]['rect']
                         corrected_codes[rect_idx] = split_result[0]['code']
@@ -321,13 +325,13 @@ def align_text_with_reference(detected_text, reference_text, letter_rects, lette
             break
     
     if iteration >= max_iterations and debug:
-        print(f"\n[align_text_with_reference] ⚠ Limite de {max_iterations} itérations atteinte")
+        logger.warning(f"Limite de {max_iterations} itérations atteinte")
     
     if debug:
         final_text = ''.join([letter_code_to_hebrew(code) if code != 27 else '' for code in corrected_codes])
-        print(f"\n[align_text_with_reference] Alignement terminé:")
-        print(f"  Nombre de corrections appliquées: {len(corrections_applied)}")
-        print(f"  Texte final (longueur: {len(final_text)}): {final_text[:100]}...")
+        logger.debug(f"Alignement terminé:")
+        logger.debug(f"Nombre de corrections appliquées: {len(corrections_applied)}")
+        logger.debug(f"Texte final (longueur: {len(final_text)}): {final_text[:100]}...")
     
     return corrected_rects, corrected_codes, corrections_applied
 

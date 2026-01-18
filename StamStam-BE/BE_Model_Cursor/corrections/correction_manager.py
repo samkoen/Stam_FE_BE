@@ -8,6 +8,7 @@ from BE_Model_Cursor.corrections.height_extension_correction import HeightExtens
 from BE_Model_Cursor.corrections.fusion_correction import FusionCorrection
 from BE_Model_Cursor.corrections.reunification_correction import ReunificationCorrection
 from BE_Model_Cursor.corrections.missing_letter_correction import MissingLetterCorrection
+from BE_Model_Cursor.utils.logger import get_logger
 
 
 class CorrectionManager:
@@ -36,6 +37,7 @@ class CorrectionManager:
         self.fusion = FusionCorrection(image, weight_file)
         self.reunification = ReunificationCorrection(image, weight_file)
         self.missing_letter = MissingLetterCorrection(image, weight_file)
+        self.logger = get_logger(__name__)
     
     def try_correct_error(self, rect_idx: int, valid_rects_final: List[Tuple[int, int, int, int]],
                           valid_codes: List[int], expected_char: str, detected_char: str,
@@ -60,7 +62,7 @@ class CorrectionManager:
         # CAS 1: N rectangles (N >= 2) détectés au lieu d'1 lettre attendue → Fusion
         if detected_chars and len(detected_chars) >= 2 and len(expected_char) == 1:
             # Exemple: "צלי" (3 rectangles) détectés au lieu de "ז" (1 lettre) attendue
-            print(f"[CorrectionManager] CAS 1: {len(detected_chars)} rectangles détectés au lieu d'1 lettre attendue → Tentative de fusion")
+            self.logger.debug(f"[CorrectionManager] CAS 1: {len(detected_chars)} rectangles détectés au lieu d'1 lettre attendue → Tentative de fusion")
             try:
                 result = self.fusion.try_correct(
                     rect_idx=rect_idx,
@@ -75,13 +77,13 @@ class CorrectionManager:
                 if result.success:
                     return result
             except Exception as e:
-                print(f"  → ✗ Erreur dans FusionCorrection: {e}")
+                self.logger.error(f"Erreur dans FusionCorrection: {e}")
             return None
         
         # CAS 3: Lettre manquante (pas de rectangle correspondant) - vérifier en premier
         # Si detected_char est vide, c'est une lettre manquante
         if not detected_char or detected_char == '':
-            print(f"[CorrectionManager] CAS 3: Lettre manquante → Tentative de réunification")
+            self.logger.debug(f"[CorrectionManager] CAS 3: Lettre manquante → Tentative de réunification")
             try:
                 result = self.missing_letter.try_correct(
                     rect_idx=rect_idx,
@@ -102,7 +104,7 @@ class CorrectionManager:
         if len(expected_char) == 1 and (detected_chars is None or len(detected_chars) == 1):
             # Sous-cas 2.1: Si détecté='ה' et attendu='ק' → Essayer d'abord la solution simple (extension de hauteur)
             if detected_char == 'ה' and expected_char == 'ק':
-                print(f"[CorrectionManager] CAS 2.1: 'ה' détecté au lieu de 'ק' → Tentative d'extension de hauteur")
+                self.logger.debug(f"[CorrectionManager] CAS 2.1: 'ה' détecté au lieu de 'ק' → Tentative d'extension de hauteur")
                 try:
                     result = self.height_extension.try_correct(
                         rect_idx=rect_idx,
@@ -119,7 +121,7 @@ class CorrectionManager:
                     print(f"  → ✗ Erreur dans HeightExtensionCorrection: {e}")
             
             # Sous-cas 2.2: Solution simple échouée (ou non applicable) → Réunification
-            print(f"[CorrectionManager] CAS 2.2: 1 rectangle détecté au lieu d'1 lettre attendue → Tentative de réunification")
+            self.logger.debug(f"[CorrectionManager] CAS 2.2: 1 rectangle détecté au lieu d'1 lettre attendue → Tentative de réunification")
             try:
                 result = self.reunification.try_correct(
                     rect_idx=rect_idx,
@@ -137,7 +139,7 @@ class CorrectionManager:
             return None
         
         # Cas non géré
-        print(f"[CorrectionManager] ⚠️  Cas non géré: expected_char='{expected_char}', detected_char='{detected_char}', detected_chars='{detected_chars}'")
+        self.logger.warning(f"[CorrectionManager] Cas non géré: expected_char='{expected_char}', detected_char='{detected_char}', detected_chars='{detected_chars}'")
         return None
     
     def add_correction_method(self, correction_method: BaseCorrection):

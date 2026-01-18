@@ -17,6 +17,7 @@ from BE_Model_Cursor.utils.contour_detector import detect_and_order_contours, de
 from BE_Model_Cursor.models.letter_predictor import predict_letters, letter_code_to_hebrew
 from BE_Model_Cursor.comparison.paracha_matcher import detect_paracha, load_paracha_texts
 from BE_Model_Cursor.comparison.text_alignment import apply_segmentation_corrections
+from BE_Model_Cursor.utils.logger import get_logger
 import diff_match_patch as dmp_module
 
 
@@ -170,39 +171,54 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                avec les rectangles verts autour des lettres, paracha_name est le nom
                de la paracha détectée, et detected_text est le texte hébreu détecté
     """
-    # Calculer le chemin vers le backend
-    backend_dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    
-    # Chemins par défaut
+    # Chemins par défaut depuis config si disponible, sinon calcul relatif
     if weight_file is None:
-        weight_file = os.path.join(backend_dir_path, 'ocr', 'model', 'output', 'Nadam_beta_1_256_30.hdf5')
+        try:
+            # Essayer d'utiliser config.py (disponible depuis app.py)
+            from config import config as app_config
+            weight_file = app_config.MODEL_PATH
+        except ImportError:
+            # Si config.py n'est pas disponible (tests, etc.), utiliser chemin relatif
+            backend_dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            weight_file = os.path.join(backend_dir_path, 'ocr', 'model', 'output', 'Nadam_beta_1_256_30.hdf5')
     
     if overflow_dir is None:
-        overflow_dir = os.path.join(backend_dir_path, 'overflow')
+        try:
+            from config import config as app_config
+            overflow_dir = app_config.OVERFLOW_DIR
+        except ImportError:
+            backend_dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            overflow_dir = os.path.join(backend_dir_path, 'overflow')
+    
+    # Initialiser le logger
+    logger = get_logger(__name__, debug=debug)
     
     # Détecter et ordonner les contours (sans prédiction des lettres)
     ordered_rects = detect_and_order_contours(image, min_contour_area=50)
     
     # Si aucun rectangle valide, retourner l'image originale
     if len(ordered_rects) == 0:
+        logger.warning("Aucune lettre détectée dans l'image")
         _, buffer = cv2.imencode('.jpg', image)
         image_base64 = base64.b64encode(buffer)
-        return image_base64, "Aucune lettre détectée", ""
+        return image_base64, "Aucune lettre détectée", "", []
     
     # Identifier les lettres avec le modèle ML
-    print(f"\n[detect_letters] Prédiction des lettres avec le modèle ML...")
-    print(f"  Nombre de rectangles à prédire: {len(ordered_rects)}")
+    if debug:
+        logger.debug(f"Prédiction des lettres avec le modèle ML...")
+        logger.debug(f"Nombre de rectangles à prédire: {len(ordered_rects)}")
     letter_codes = predict_letters(image, ordered_rects, weight_file)
-    print(f"  ✓ Prédiction terminée: {len(letter_codes)} codes obtenus")
+    if debug:
+        logger.debug(f"Prédiction terminée: {len(letter_codes)} codes obtenus")
     
     # Filtrer les codes invalides (27 = zevel/noise)
     valid_letter_data = [(rect, code) for rect, code in zip(ordered_rects, letter_codes) if code != 27]
     invalid_count = len(ordered_rects) - len(valid_letter_data)
     if invalid_count > 0:
-        print(f"  ⚠ {invalid_count} rectangles filtrés (code 27 = zevel/noise)")
+        logger.debug(f"{invalid_count} rectangles filtrés (code 27 = zevel/noise)")
     
     if len(valid_letter_data) == 0:
-        print(f"  ✗ ERREUR: Aucune lettre valide détectée après filtrage")
+        logger.error("Aucune lettre valide détectée après filtrage")
         _, buffer = cv2.imencode('.jpg', image)
         image_base64 = base64.b64encode(buffer)
         return image_base64, "Aucune lettre valide détectée", "", []
@@ -211,10 +227,12 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
     valid_rects_final, valid_codes = zip(*valid_letter_data)
     valid_rects_final = list(valid_rects_final)
     valid_codes = list(valid_codes)
-    print(f"  ✓ {len(valid_rects_final)} lettres valides conservées")
+    if debug:
+        logger.debug(f"{len(valid_rects_final)} lettres valides conservées")
     
     # Détecter la paracha et obtenir le texte
-    print(f"\n[detect_letters] Détection de la paracha...")
+    if debug:
+        logger.debug(f"Détection de la paracha...")
     paracha_name, detected_text = detect_paracha(list(valid_codes), overflow_dir)
     
     # Appliquer les corrections de segmentation si une paracha a été détectée
@@ -224,9 +242,10 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
         reference_text = paracha_texts.get(paracha_name, '')
         
         if reference_text:
-            print(f"\n[detect_letters] Application des corrections de segmentation pour {paracha_name}")
-            print(f"Texte détecté (avant correction): {detected_text[:50]}...")
-            print(f"Texte de référence: {reference_text[:50]}...")
+            if debug:
+                logger.debug(f"Application des corrections de segmentation pour {paracha_name}")
+                logger.debug(f"Texte détecté (avant correction): {detected_text[:50]}...")
+                logger.debug(f"Texte de référence: {reference_text[:50]}...")
             
             # Appliquer les corrections
             corrected_rects, corrected_codes, corrections = apply_segmentation_corrections(
@@ -249,13 +268,15 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                                     for code in valid_codes])
             
             if corrections:
-                print(f"Corrections appliquées: {len(corrections)}")
-                for corr in corrections:
-                    print(f"  - {corr['type']} à la position {corr['position']}: {corr.get('text', '')}")
+                if debug:
+                    logger.debug(f"Corrections appliquées: {len(corrections)}")
+                    for corr in corrections:
+                        logger.debug(f"  - {corr['type']} à la position {corr['position']}: {corr.get('text', '')}")
             
-            print(f"Texte détecté (après correction): {detected_text[:50]}...")
-            print(f"Nombre de rectangles après correction: {len(valid_rects_final)}")
-            print(f"Nombre de codes après correction: {len(valid_codes)}")
+            if debug:
+                logger.debug(f"Texte détecté (après correction): {detected_text[:50]}...")
+                logger.debug(f"Nombre de rectangles après correction: {len(valid_rects_final)}")
+                logger.debug(f"Nombre de codes après correction: {len(valid_codes)}")
     
     # Créer une copie de l'image originale pour dessiner les rectangles
     result_image = image.copy()
@@ -280,11 +301,12 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
             diff = dmp.diff_main(reference_text, detected_text)
             dmp.diff_cleanupSemantic(diff)
             
-            print(f"\n[detect_letters] Comparaison finale (marquage uniquement, pas de corrections):")
-            print(f"  Texte de référence: {reference_text[:100]}...")
-            print(f"  Texte détecté (après corrections de segmentation): {detected_text[:100]}...")
-            print(f"  Nombre de rectangles: {len(valid_rects_final)}")
-            print(f"  Nombre de caractères dans detected_text: {len(detected_text)}")
+            if debug:
+                logger.debug(f"Comparaison finale (marquage uniquement, pas de corrections):")
+                logger.debug(f"  Texte de référence: {reference_text[:100]}...")
+                logger.debug(f"  Texte détecté (après corrections de segmentation): {detected_text[:100]}...")
+                logger.debug(f"  Nombre de rectangles: {len(valid_rects_final)}")
+                logger.debug(f"  Nombre de caractères dans detected_text: {len(detected_text)}")
             
             # Mapper les différences aux rectangles
             # On parcourt le texte détecté caractère par caractère

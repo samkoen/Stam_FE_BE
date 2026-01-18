@@ -4,6 +4,7 @@ Module pour comparer le texte détecté avec les parachot et identifier la parac
 import os
 import io
 import diff_match_patch as dmp_module
+from BE_Model_Cursor.utils.logger import get_logger
 
 
 def read_paracha_text(file_path):
@@ -21,7 +22,8 @@ def read_paracha_text(file_path):
             lines = [line.rstrip() for line in file]
         return lines
     except Exception as e:
-        print(f"Erreur lors de la lecture de {file_path}: {e}")
+        logger = get_logger(__name__)
+        logger.error(f"Erreur lors de la lecture de {file_path}: {e}")
         return []
 
 
@@ -53,7 +55,8 @@ def load_paracha_texts(base_path):
             # Joindre toutes les lignes en un seul texte
             paracha_texts[paracha_name] = ''.join(lines)
         else:
-            print(f"Avertissement: fichier {file_path} introuvable")
+            logger = get_logger(__name__)
+            logger.warning(f"Fichier {file_path} introuvable")
             paracha_texts[paracha_name] = ''
     
     return paracha_texts
@@ -71,14 +74,15 @@ def compare_with_parachot(detected_text, base_path):
         tuple: (diff_result, paracha_name) où diff_result est le résultat de la comparaison
                et paracha_name est le nom de la paracha détectée
     """
-    print(f"\n=== DÉTECTION DE PARACHA ===")
-    print(f"Texte détecté (longueur: {len(detected_text)}): {detected_text[:100]}..." if len(detected_text) > 100 else f"Texte détecté (longueur: {len(detected_text)}): {detected_text}")
+    logger = get_logger(__name__)
+    logger.debug(f"=== DÉTECTION DE PARACHA ===")
+    logger.debug(f"Texte détecté (longueur: {len(detected_text)}): {detected_text[:100]}..." if len(detected_text) > 100 else f"Texte détecté (longueur: {len(detected_text)}): {detected_text}")
     
     # Charger tous les textes des parachot
     paracha_texts = load_paracha_texts(base_path)
     
     if not paracha_texts:
-        print("ERREUR: Aucun texte de paracha chargé")
+        logger.error("Aucun texte de paracha chargé")
         return None, "Non détectée"
     
     # Initialiser diff_match_patch
@@ -86,11 +90,11 @@ def compare_with_parachot(detected_text, base_path):
     
     # Comparer avec chaque paracha
     diff_results = {}
-    print("\nComparaisons avec les parachot:")
+    logger.debug("Comparaisons avec les parachot:")
     for paracha_name, reference_text in paracha_texts.items():
         diff = dmp.diff_main(reference_text, detected_text)
         num_diffs = len(diff)
-        print(f"  - {paracha_name}: {num_diffs} différences (texte ref longueur: {len(reference_text)})")
+        logger.debug(f"  - {paracha_name}: {num_diffs} différences (texte ref longueur: {len(reference_text)})")
         diff_results[paracha_name] = diff
     
     # Trouver la meilleure correspondance initiale (celle avec le moins de différences)
@@ -108,11 +112,11 @@ def compare_with_parachot(detected_text, base_path):
         # Calculer la somme des différences de Chema + Chamoa
         chema_chamoa_sum = chema_diffs + chamoa_diffs
         
-        print(f"\n⚠️  Détection de {initial_paracha_name}, vérification avec Mezuza:")
-        print(f"  - Chema: {chema_diffs} différences")
-        print(f"  - Chamoa: {chamoa_diffs} différences")
-        print(f"  - Somme Chema + Chamoa: {chema_chamoa_sum} différences")
-        print(f"  - Mezuza: {mezuza_diffs} différences")
+        logger.debug(f"Détection de {initial_paracha_name}, vérification avec Mezuza:")
+        logger.debug(f"  - Chema: {chema_diffs} différences")
+        logger.debug(f"  - Chamoa: {chamoa_diffs} différences")
+        logger.debug(f"  - Somme Chema + Chamoa: {chema_chamoa_sum} différences")
+        logger.debug(f"  - Mezuza: {mezuza_diffs} différences")
         
         # Vérifier si la somme est "à peu près égale" à Mezuza (à 40 différences près)
         diff_threshold = 40
@@ -120,17 +124,17 @@ def compare_with_parachot(detected_text, base_path):
         
         if diff_abs <= diff_threshold:
             # La somme est à peu près égale à Mezuza, choisir Mezuza
-            print(f"  → Somme ≈ Mezuza (différence: {diff_abs} <= {diff_threshold}), choix: Mezuza")
+            logger.debug(f"  → Somme ≈ Mezuza (différence: {diff_abs} <= {diff_threshold}), choix: Mezuza")
             paracha_name = 'Mezuza'
             diff_result = diff_results['Mezuza']
         else:
             # Sinon, choisir entre Chema et Chamoa celui qui a le moins de différences
             if chema_diffs <= chamoa_diffs:
-                print(f"  → Somme ≠ Mezuza (différence: {diff_abs} > {diff_threshold}), choix: Chema ({chema_diffs} <= {chamoa_diffs})")
+                logger.debug(f"  → Somme ≠ Mezuza (différence: {diff_abs} > {diff_threshold}), choix: Chema ({chema_diffs} <= {chamoa_diffs})")
                 paracha_name = 'Chema'
                 diff_result = diff_results['Chema']
             else:
-                print(f"  → Somme ≠ Mezuza (différence: {diff_abs} > {diff_threshold}), choix: Chamoa ({chamoa_diffs} < {chema_diffs})")
+                logger.debug(f"  → Somme ≠ Mezuza (différence: {diff_abs} > {diff_threshold}), choix: Chamoa ({chamoa_diffs} < {chema_diffs})")
                 paracha_name = 'Chamoa'
                 diff_result = diff_results['Chamoa']
     else:
@@ -138,8 +142,8 @@ def compare_with_parachot(detected_text, base_path):
         paracha_name = initial_paracha_name
         diff_result = best_match[1]
     
-    print(f"\n✅ Paracha détectée: {paracha_name} ({len(diff_result)} différences)")
-    print("=" * 50 + "\n")
+    logger.info(f"Paracha détectée: {paracha_name} ({len(diff_result)} différences)")
+    logger.debug("=" * 50)
     
     return diff_result, paracha_name
 
@@ -177,12 +181,13 @@ def detect_paracha(letter_codes, base_path):
         tuple: (paracha_name, detected_text) où paracha_name est le nom de la paracha détectée
                et detected_text est le texte hébreu détecté
     """
-    print(f"\n[detect_paracha] Nombre de codes de lettres reçus: {len(letter_codes)}")
+    logger = get_logger(__name__)
+    logger.debug(f"[detect_paracha] Nombre de codes de lettres reçus: {len(letter_codes)}")
     
     # Convertir les codes en texte hébreu
     detected_text = letter_codes_to_text(letter_codes)
     
-    print(f"[detect_paracha] Texte converti (longueur: {len(detected_text)})")
+    logger.debug(f"[detect_paracha] Texte converti (longueur: {len(detected_text)})")
     
     # Comparer avec les parachot
     _, paracha_name = compare_with_parachot(detected_text, base_path)

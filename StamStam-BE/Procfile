@@ -1,1 +1,6 @@
-web: gunicorn avi.wsgi --log-file -
+# Procfile pour déploiement (Heroku, etc.)
+# FastAPI avec Gunicorn et workers Uvicorn
+web: gunicorn --config gunicorn_config.py app:app
+
+# Note: Pour Django (ancien code, à supprimer si non utilisé)
+# django: gunicorn avi.wsgi --log-file -

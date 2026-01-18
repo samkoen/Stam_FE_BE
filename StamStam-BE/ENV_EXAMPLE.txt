@@ -1,0 +1,47 @@
+# Configuration StamStam
+# Copiez ce fichier vers .env et modifiez les valeurs selon votre environnement
+# COMMANDE: cp ENV_EXAMPLE.txt .env
+
+# ==================== Environnement ====================
+# Environnement: 'dev' pour développement, 'prod' ou 'production' pour production
+STAMSTAM_ENV=dev
+
+# Mode DEBUG: 'true' pour activer, 'false' ou vide pour désactiver
+# ⚠️  NE JAMAIS mettre 'true' en production !
+STAMSTAM_DEBUG=false
+
+# ==================== Chemins des fichiers ====================
+# Chemin vers le fichier de poids du modèle ML (.hdf5)
+# Chemin absolu ou relatif depuis la racine du projet
+STAMSTAM_MODEL_PATH=ocr/model/output/Nadam_beta_1_256_30.hdf5
+
+# Chemin vers le dossier overflow/ contenant les fichiers texte des parachot
+# Chemin absolu ou relatif depuis la racine du projet
+STAMSTAM_OVERFLOW_DIR=overflow
+
+# ==================== Configuration du serveur ====================
+# Host pour le serveur FastAPI (généralement '0.0.0.0' pour accepter toutes les interfaces)
+STAMSTAM_HOST=0.0.0.0
+
+# Port pour le serveur FastAPI
+STAMSTAM_PORT=8000
+
+# ==================== Configuration CORS ====================
+# Origines autorisées pour CORS (séparées par des virgules)
+# En développement: '*'
+# En production: spécifier les domaines exacts, ex: 'https://example.com,https://www.example.com'
+STAMSTAM_CORS_ORIGINS=*
+
+# ==================== Configuration Logging ====================
+# Fichier de log (vide ou 'none' = uniquement stdout)
+# En développement: 'logs/stamstam.log' (créé automatiquement)
+# En production: vide ou '/var/log/stamstam.log'
+STAMSTAM_LOG_FILE=
+
+# Niveau de log: DEBUG, INFO, WARNING, ERROR
+STAMSTAM_LOG_LEVEL=INFO
+
+# ==================== Configuration API ====================
+# Taille maximale des fichiers uploadés (en MB)
+STAMSTAM_MAX_UPLOAD_SIZE_MB=10
+
