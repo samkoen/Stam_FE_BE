@@ -216,8 +216,15 @@ class App {
             const result = await ApiService.detectLetters(fileToSend);
             
             this.currentImageBase64 = result.image;
-            // Afficher le résultat avec le nom de la paracha détectée
-            this.ui.showResults(result.image, result.paracha);
+            // Log pour vérifier que le texte est bien reçu
+            console.log('=== RÉSULTAT API ===');
+            console.log('result:', result);
+            console.log('result.text:', result.text);
+            console.log('Type de result.text:', typeof result.text);
+            console.log('Longueur de result.text:', result.text ? result.text.length : 0);
+            
+            // Afficher le résultat avec le nom de la paracha détectée, le texte et les différences
+            this.ui.showResults(result.image, result.paracha, result.text || '', result.differences || []);
             this.ui.elements.panelTitle.textContent = 'זיהוי אותיות';
         } catch (error) {
             this.ui.showError(error.message || 'שגיאה בזיהוי האותיות');

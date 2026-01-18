@@ -174,7 +174,8 @@ def detect_paracha(letter_codes, base_path):
         base_path: Chemin de base vers le dossier overflow/ contenant les fichiers texte
         
     Returns:
-        str: Nom de la paracha détectée
+        tuple: (paracha_name, detected_text) où paracha_name est le nom de la paracha détectée
+               et detected_text est le texte hébreu détecté
     """
     print(f"\n[detect_paracha] Nombre de codes de lettres reçus: {len(letter_codes)}")
     
@@ -186,5 +187,5 @@ def detect_paracha(letter_codes, base_path):
     # Comparer avec les parachot
     _, paracha_name = compare_with_parachot(detected_text, base_path)
     
-    return paracha_name
+    return paracha_name, detected_text
 

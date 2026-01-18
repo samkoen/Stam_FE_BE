@@ -328,15 +328,15 @@
 /* Legend */
 .legend {
     background: var(--bg-primary);
-    padding: var(--spacing-lg);
+    padding: var(--spacing-xl);
     border-top: 2px solid var(--bg-secondary);
 }
 
 .legend-title {
-    font-size: 1.1rem;
+    font-size: 1.3rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
     text-align: center;
 }
 
@@ -383,10 +383,14 @@
     background-color: var(--legend-blue);
 }
 
+.legend-orange {
+    background-color: #ffa500;
+}
+
 .legend-label {
     font-weight: 500;
     color: var(--text-primary);
-    font-size: 0.95rem;
+    font-size: 1.1rem;
 }
 
 /* Animations */

@@ -380,6 +380,7 @@ def detect_contours(image, min_contour_area=50, show_images=False):
         list: Liste de tuples (x, y, w, h) représentant les rectangles des lettres détectées
     """
     # Étape 1-5 : Traitement de l'image
+    print(f"[detect_contours] Étapes 1-5: Traitement de l'image (gris, flou, seuillage, détection contours)...")
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     thresh = cv2.adaptiveThreshold(
@@ -391,8 +392,10 @@ def detect_contours(image, min_contour_area=50, show_images=False):
         2
     )
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    print(f"  ✓ {len(contours)} contours détectés")
     
     # Étape 6 : Filtrage des contours par taille
+    print(f"[detect_contours] Étape 6: Filtrage des contours par taille (min_area={min_contour_area})...")
     valid_rects = []
     for contour in contours:
         area = cv2.contourArea(contour)
@@ -407,6 +410,7 @@ def detect_contours(image, min_contour_area=50, show_images=False):
             if 0.1 < aspect_ratio < 5.0:
                 valid_rects.append((x, y, w, h))
     
+    print(f"  ✓ {len(valid_rects)} rectangles valides après filtrage")
     if show_images:
         image_filtered = _draw_rectangles_on_image(image, valid_rects, (0, 255, 255), 2)
         _show_image_with_text(image_filtered, "Etape 6: Contours filtres",
@@ -415,6 +419,7 @@ def detect_contours(image, min_contour_area=50, show_images=False):
                              "Appuyez sur une touche pour continuer"])
     
     # Étape 7 : Ordonnancement (tri par lignes)
+    print(f"[detect_contours] Étape 7: Ordonnancement par lignes...")
     from BE_Model_Cursor.utils.rectangle_sorter import sort_rectangles_by_lines, _sort_rectangles_by_lines_with_lines
     
     if show_images:
@@ -442,11 +447,18 @@ def detect_contours(image, min_contour_area=50, show_images=False):
                                    "Etape 7: Ordonnancement",
                                    "Etape 7: Apres ordonnancement par lignes",
                                    color=(255, 0, 255))
+        print(f"  ✓ {len(lines)} lignes détectées, {len(valid_rects)} rectangles ordonnés")
     else:
         valid_rects = sort_rectangles_by_lines(valid_rects, debug=False, image=None)
+        print(f"  ✓ Ordonnancement terminé: {len(valid_rects)} rectangles")
     
     # Étape 8 : Suppression des rectangles inclus
+    print(f"[detect_contours] Étape 8: Suppression des rectangles inclus...")
+    rects_before_removal = len(valid_rects)
     valid_rects = remove_small_included_rects(valid_rects)
+    rects_removed = rects_before_removal - len(valid_rects)
+    if rects_removed > 0:
+        print(f"[detect_contours] Étape 8: {rects_removed} rectangle(s) inclus supprimé(s) ({rects_before_removal} → {len(valid_rects)})")
     if show_images:
         image_no_included = _draw_rectangles_on_image(image, valid_rects, (255, 255, 0), 2)
         _show_image_with_text(image_no_included, "Etape 8: Sans rectangles inclus",
@@ -455,7 +467,14 @@ def detect_contours(image, min_contour_area=50, show_images=False):
                              "Appuyez sur une touche pour continuer"])
     
     # Étape 9 : Combinaison des chevauchements horizontaux
+    print(f"[detect_contours] Étape 9: Combinaison des chevauchements horizontaux...")
+    rects_before_combine = len(valid_rects)
     valid_rects = combine_horizontal_overlaps(valid_rects, debug=show_images)
+    rects_combined = rects_before_combine - len(valid_rects)
+    if rects_combined > 0:
+        print(f"  ✓ {rects_combined} rectangle(s) combiné(s) ({rects_before_combine} → {len(valid_rects)})")
+    else:
+        print(f"  ✓ Aucune combinaison nécessaire ({len(valid_rects)} rectangles)")
     if show_images:
         _show_rectangles_interactive(image, valid_rects,
                                    "Etape 9: Combinaison des chevauchements",

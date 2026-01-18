@@ -121,7 +121,7 @@ async def detect_letters_endpoint(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="Impossible de décoder l'image")
         
         # Détecter les lettres et la paracha
-        img_base64, paracha_name = detect_letters(img)
+        img_base64, paracha_name, detected_text, differences = detect_letters(img)
         
         # Convertir bytes en string
         img_base64_str = img_base64.decode('utf-8')
@@ -129,7 +129,9 @@ async def detect_letters_endpoint(file: UploadFile = File(...)):
         return JSONResponse({
             "success": True,
             "image": img_base64_str,
-            "paracha": paracha_name
+            "paracha": paracha_name,
+            "text": detected_text,
+            "differences": differences
         })
         
     except HTTPException:

@@ -114,28 +114,42 @@
                         </div>
                     </div>
 
-                    <div class="image-info" id="imageInfo" style="display: none;">
-                        <div class="info-item">
-                            <span class="info-label">פרשה מזוהה:</span>
-                            <span class="info-value" id="parachaName">-</span>
+                    <div class="panel-content-scrollable" id="panelContentScrollable">
+                        <div class="image-info" id="imageInfo" style="display: none;">
+                            <div class="info-item">
+                                <span class="info-label">פרשה מזוהה:</span>
+                                <span class="info-value" id="parachaName">-</span>
+                                <span id="successMessage" style="display: none; margin-right: 10px;"></span>
+                            </div>
+                            <div class="info-item" id="detectedTextItem" style="display: none;">
+                                <span class="info-label">טקסט מזוהה:</span>
+                                <div class="info-value detected-text" id="detectedText" style="display: block;">-</div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="legend" id="legend" style="display: none;">
-                        <div class="legend-title">מקרא</div>
-                        <div class="legend-items">
-                            <div class="legend-item">
-                                <div class="legend-color legend-green"></div>
-                                <span class="legend-label">אותיות נכונות</span>
+                        <div class="legend" id="legend" style="display: none;">
+                            <div class="legend-title">מקרא</div>
+                            <div class="legend-items">
+                                <div class="legend-item">
+                                    <div class="legend-color legend-green"></div>
+                                    <span class="legend-label">אותיות נכונות</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color legend-red"></div>
+                                    <span class="legend-label">אותיות חסרות</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color legend-blue"></div>
+                                    <span class="legend-label">אותיות מיותרות</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color legend-orange"></div>
+                                    <span class="legend-label">אותיות שגויות</span>
+                                </div>
                             </div>
-                            <div class="legend-item">
-                                <div class="legend-color legend-red"></div>
-                                <span class="legend-label">אותיות חסרות</span>
-                            </div>
-                            <div class="legend-item">
-                                <div class="legend-color legend-blue"></div>
-                                <span class="legend-label">אותיות מיותרות</span>
-                            </div>
+                        </div>
+                        
+                        <div class="differences-section" id="differencesInfo" style="display: none;">
                         </div>
                     </div>
                 </div>

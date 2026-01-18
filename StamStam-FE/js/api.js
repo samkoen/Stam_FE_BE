@@ -69,10 +69,21 @@ export class ApiService {
                 throw new Error('שגיאה בזיהוי האותיות');
             }
 
+            // Log pour déboguer
+            console.log('Réponse API detectLetters:', {
+                success: data.success,
+                hasImage: !!data.image,
+                paracha: data.paracha,
+                text: data.text,
+                textLength: data.text ? data.text.length : 0
+            });
+
             return {
                 success: true,
                 image: data.image,
-                paracha: data.paracha || 'לא זוהה'
+                paracha: data.paracha || 'לא זוהה',
+                text: data.text || '',
+                differences: data.differences || []
             };
         } catch (error) {
             if (error instanceof TypeError && error.message.includes('fetch')) {
