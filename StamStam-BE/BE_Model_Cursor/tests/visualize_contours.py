@@ -30,7 +30,7 @@ def main():
     # Fichier de test hardcodé
 
     #TEST_IMAGE_FILE = 'kouf2.png'
-    TEST_IMAGE_FILE = '001.jpg'
+    TEST_IMAGE_FILE = 'mezuza1.jpg'
     # Charger l'image de test
     test_images_dir = os.path.join(current_dir, 'test_images')
     test_image_path = os.path.join(test_images_dir, TEST_IMAGE_FILE)

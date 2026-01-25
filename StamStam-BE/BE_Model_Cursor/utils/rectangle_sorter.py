@@ -22,22 +22,22 @@ def follow_rect(self_rect, let_rect, width_mean):
     # Calculer le chevauchement vertical (même logique que Letter.follow)
     s = max(self_rect[1], let_rect[1])
     h = min(self_rect[1] + self_rect[3], let_rect[1] + let_rect[3]) - s
-    
+
     # Condition exacte de Letter.follow:
-    # ((self._chr==12 and h > 5) or (self._chr!=12 and h > 1)) and 
+    # ((self._chr==12 and h > 5) or (self._chr!=12 and h > 1)) and
     # (let.rect[0] - (self.rect[0]+self.rect[2])) < widht_mean*8
     # On simplifie en utilisant h > 1 (car on n'a pas accès à _chr)
-    # 
+    #
     # IMPORTANT: h doit être > 0 pour qu'il y ait un chevauchement vertical réel
     # Si h <= 0, les rectangles ne se chevauchent pas verticalement du tout
-    
+
     # Vérification supplémentaire: s'assurer que les rectangles sont vraiment sur la même ligne
     # en vérifiant que la différence de y n'est pas trop grande
     # Utiliser une tolérance basée sur la hauteur moyenne pour gérer les lettres avec des parties hautes/basses
     height_mean = (self_rect[3] + let_rect[3]) / 2
     y_diff = abs(self_rect[1] - let_rect[1])
-    
-    # Si la différence de y est trop grande (plus de 1.5 fois la hauteur moyenne), 
+
+    # Si la différence de y est trop grande (plus de 1.5 fois la hauteur moyenne),
     # les rectangles ne sont probablement pas sur la même ligne
     # Mais on permet un chevauchement vertical significatif (au moins 30% de la hauteur moyenne)
     if h > 1 and (let_rect[0] - (self_rect[0] + self_rect[2])) < width_mean * 8:
@@ -67,7 +67,7 @@ def is_rect_included(rect_a, rect_b):
 
 def sort_rectangles_by_lines(rects, debug=False, image=None):
     """
-    Ordonne les rectangles en lignes (de droite à gauche dans chaque ligne, 
+    Ordonne les rectangles en lignes (de droite à gauche dans chaque ligne,
     puis de haut en bas pour les lignes).
 
     Inspiré exactement de sort_contour dans letter_separation.py.
