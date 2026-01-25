@@ -15,6 +15,10 @@
                     <span class="icon">📜</span>
                     StamStam
                 </h1>
+                <div class="user-info">
+                    <span id="userEmail" class="user-email"></span>
+                    <button id="logoutBtn" class="btn-logout" title="התנתק">🚪</button>
+                </div>
             </div>
         </header>
 
@@ -119,6 +123,8 @@
                             <div class="info-item">
                                 <span class="info-label">פרשה מזוהה:</span>
                                 <span class="info-value" id="parachaName">-</span>
+                                <span class="info-value status-pill" id="parachaStatus" style="margin-right:8px;"></span>
+                                <span class="info-value status-pill" id="errorsStatus" style="margin-right:8px;"></span>
                                 <span id="successMessage" style="display: none; margin-right: 10px;"></span>
                             </div>
                             <div class="info-item" id="detectedTextItem" style="display: none;">
@@ -161,6 +167,15 @@
         </footer>
     </div>
 
+    <script>
+        // Vérifier la connexion avant de charger l'application
+        window.addEventListener('DOMContentLoaded', () => {
+            const userEmail = localStorage.getItem('stamstam_user_email');
+            if (!userEmail) {
+                window.location.href = 'login.html';
+            }
+        });
+    </script>
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

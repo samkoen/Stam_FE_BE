@@ -132,8 +132,8 @@ def process_single_image(image_path, show_contours=True, debug=True, save_result
         print()
     
     # Utiliser la même fonction que le serveur
-    # detect_letters retourne: (image_base64, paracha_name, detected_text, differences_info)
-    img_base64, paracha_name, detected_text, differences_info = detect_letters(
+    # detect_letters retourne: (image_base64, paracha_name, detected_text, differences_info, summary)
+    img_base64, paracha_name, detected_text, differences_info, summary = detect_letters(
         test_image, 
         debug=debug
     )
@@ -149,7 +149,7 @@ def process_single_image(image_path, show_contours=True, debug=True, save_result
         nparr = np.frombuffer(img_bytes, np.uint8)
         result_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     
-    return img_base64, paracha_name, detected_text, differences_info, result_image
+    return img_base64, paracha_name, detected_text, differences_info, summary, result_image
 
 
 def main():
@@ -158,8 +158,9 @@ def main():
     et compare avec la paracha. Utilise le code du serveur avec show_images=True pour afficher les étapes.
     """
     # Fichier de test hardcodé
-    #TEST_IMAGE_FILE = 'kouf2.png'
-    TEST_IMAGE_FILE = '005.jpg'
+    TEST_IMAGE_FILE = 'mezuza1.jpg'
+    #TEST_IMAGE_FILE = 'vehaya_avec_un_mot_en_plus.jpg'
+
     
     # Charger l'image de test
     test_images_dir = os.path.join(current_dir, 'test_images')
@@ -180,7 +181,7 @@ def main():
     if result is None:
         return
     
-    img_base64, paracha_name, detected_text, differences_info, result_image = result
+    img_base64, paracha_name, detected_text, differences_info, summary, result_image = result
     
     # Afficher les résultats de la comparaison
     display_comparison_results(differences_info, detected_text, paracha_name)

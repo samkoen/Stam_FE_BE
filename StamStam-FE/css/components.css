@@ -7,6 +7,44 @@
     animation: fadeInUp 0.6s ease-out;
 }
 
+/* Email Section */
+.email-section {
+    margin-bottom: var(--spacing-lg);
+}
+
+.email-label {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+    text-align: right;
+}
+
+.email-input {
+    width: 100%;
+    padding: var(--spacing-md);
+    font-size: 1rem;
+    border: 2px solid var(--bg-secondary);
+    border-radius: var(--border-radius-md);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    transition: all var(--transition-base);
+    text-align: right;
+    direction: rtl;
+}
+
+.email-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.email-input::placeholder {
+    color: var(--text-muted);
+    text-align: right;
+}
+
 .upload-area {
     border: 3px dashed var(--color-primary);
     border-radius: var(--border-radius-lg);

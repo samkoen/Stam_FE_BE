@@ -13,7 +13,8 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, backend_dir)
 
-from BE_Model_Cursor.utils.contour_detector import detect_and_order_contours, detect_contours, detect_contours
+from BE_Model_Cursor.utils.contour_detector import detect_and_order_contours, detect_contours, _in_same_line, _show_rectangles_interactive
+from BE_Model_Cursor.utils.rectangle_with_line import RectangleWithLine
 from BE_Model_Cursor.models.letter_predictor import predict_letters, letter_code_to_hebrew
 from BE_Model_Cursor.comparison.paracha_matcher import detect_paracha, load_paracha_texts
 from BE_Model_Cursor.comparison.text_alignment import apply_segmentation_corrections
@@ -172,6 +173,9 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                de la paracha détectée, et detected_text est le texte hébreu détecté
     """
     # Chemins par défaut depuis config si disponible, sinon calcul relatif
+    # Calculer backend_dir_path une seule fois au début
+    backend_dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
     if weight_file is None:
         try:
             # Essayer d'utiliser config.py (disponible depuis app.py)
@@ -179,7 +183,6 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
             weight_file = app_config.MODEL_PATH
         except ImportError:
             # Si config.py n'est pas disponible (tests, etc.), utiliser chemin relatif
-            backend_dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             weight_file = os.path.join(backend_dir_path, 'ocr', 'model', 'output', 'Nadam_beta_1_256_30.hdf5')
     
     if overflow_dir is None:
@@ -187,7 +190,7 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
             from config import config as app_config
             overflow_dir = app_config.OVERFLOW_DIR
         except ImportError:
-            backend_dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            # Si config.py n'est pas disponible (tests, etc.), utiliser chemin relatif
             overflow_dir = os.path.join(backend_dir_path, 'overflow')
     
     # Initialiser le logger
@@ -210,6 +213,33 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
     letter_codes = predict_letters(image, ordered_rects, weight_file)
     if debug:
         logger.debug(f"Prédiction terminée: {len(letter_codes)} codes obtenus")
+        
+        # Afficher les lettres détectées interactivement
+        predicted_labels = []
+        for code in letter_codes:
+            if code == 27:
+                predicted_labels.append("?")
+            else:
+                # Utiliser le nom de la lettre ou le code si l'affichage hébreu pose problème
+                # On essaie d'afficher la lettre hébraïque
+                predicted_labels.append(letter_code_to_hebrew(code))
+        
+        try:
+            _show_rectangles_interactive(
+                image, 
+                ordered_rects, 
+                "Lettres Detectees", 
+                "Lettres Detectees (apres prediction)", 
+                color=(255, 0, 0),  # Bleu
+                labels=predicted_labels
+            )
+        except Exception as e:
+            logger.warning(f"Impossible d'afficher les lettres interactivement: {e}")
+    
+    # Initialiser detected_letter pour chaque RectangleWithLine
+    for rect, code in zip(ordered_rects, letter_codes):
+        if isinstance(rect, RectangleWithLine):
+            rect.detected_letter = letter_code_to_hebrew(code) if code != 27 else None
     
     # Filtrer les codes invalides (27 = zevel/noise)
     valid_letter_data = [(rect, code) for rect, code in zip(ordered_rects, letter_codes) if code != 27]
@@ -227,6 +257,12 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
     valid_rects_final, valid_codes = zip(*valid_letter_data)
     valid_rects_final = list(valid_rects_final)
     valid_codes = list(valid_codes)
+    
+    # Initialiser text_position pour chaque RectangleWithLine
+    for i, rect in enumerate(valid_rects_final):
+        if isinstance(rect, RectangleWithLine):
+            rect.text_position = i
+    
     if debug:
         logger.debug(f"{len(valid_rects_final)} lettres valides conservées")
     
@@ -234,6 +270,9 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
     if debug:
         logger.debug(f"Détection de la paracha...")
     paracha_name, detected_text = detect_paracha(list(valid_codes), overflow_dir)
+    
+    # Initialiser reference_text pour éviter les erreurs
+    reference_text = ''
     
     # Appliquer les corrections de segmentation si une paracha a été détectée
     if paracha_name and paracha_name != "Non détectée" and paracha_name != "Aucune lettre détectée":
@@ -264,8 +303,52 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
             
             # Recalculer le texte détecté avec les corrections
             # C'est ce texte corrigé qui sera comparé avec le texte de référence
-            detected_text = ''.join([letter_code_to_hebrew(code) if code != 27 else '' 
-                                    for code in valid_codes])
+            # Utiliser detected_letter depuis RectangleWithLine si disponible
+            detected_text = ''
+            for i, rect in enumerate(valid_rects_final):
+                if isinstance(rect, RectangleWithLine) and rect.detected_letter:
+                    detected_text += rect.detected_letter
+                elif i < len(valid_codes):
+                    # Fallback : utiliser le code si detected_letter n'est pas disponible
+                    detected_text += letter_code_to_hebrew(valid_codes[i]) if valid_codes[i] != 27 else ''
+            
+            # Mettre à jour les couleurs des rectangles en fonction des différences
+            # On calcule d'abord le diff pour déterminer les couleurs
+            dmp = dmp_module.diff_match_patch()
+            diff = dmp.diff_main(reference_text, detected_text)
+            dmp.diff_cleanupSemantic(diff)
+            
+            # Parcourir le diff et mettre à jour les couleurs des rectangles
+            rect_idx = 0
+            for i in range(len(diff)):
+                op, text = diff[i]
+                
+                if op == 0:  # Égalité - texte correct (vert)
+                    for j in range(len(text)):
+                        if rect_idx < len(valid_rects_final):
+                            if isinstance(valid_rects_final[rect_idx], RectangleWithLine):
+                                valid_rects_final[rect_idx].color = (0, 255, 0)  # Vert
+                            rect_idx += 1
+                
+                elif op == -1:  # Supprimé dans detected_text = lettre manquante ou substitution
+                    # Vérifier si c'est une substitution (suivi d'une addition)
+                    if i + 1 < len(diff) and diff[i + 1][0] == 1:
+                        # C'est une substitution : marquer en orange
+                        added_text = diff[i + 1][1]
+                        for j in range(len(added_text)):
+                            if rect_idx < len(valid_rects_final):
+                                if isinstance(valid_rects_final[rect_idx], RectangleWithLine):
+                                    valid_rects_final[rect_idx].color = (0, 165, 255)  # Orange
+                                rect_idx += 1
+                        i += 1  # On passe l'opération -1, et +1 sera géré dans le prochain tour de boucle
+                    # Pour les vraies lettres manquantes, pas de rectangle à colorer (on dessine un X)
+                
+                elif op == 1:  # Ajouté dans detected_text = lettre en trop (bleu)
+                    for j in range(len(text)):
+                        if rect_idx < len(valid_rects_final):
+                            if isinstance(valid_rects_final[rect_idx], RectangleWithLine):
+                                valid_rects_final[rect_idx].color = (255, 0, 0)  # Bleu
+                            rect_idx += 1
             
             if corrections:
                 if debug:
@@ -308,9 +391,10 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                 logger.debug(f"  Nombre de rectangles: {len(valid_rects_final)}")
                 logger.debug(f"  Nombre de caractères dans detected_text: {len(detected_text)}")
             
-            # Mapper les différences aux rectangles
+            # Mapper les différences aux rectangles et dessiner
             # On parcourt le texte détecté caractère par caractère
             # IMPORTANT: On ne fait PLUS de corrections ici, seulement du marquage
+            # Les couleurs ont déjà été mises à jour dans les rectangles précédemment
             rect_idx = 0
             i = 0
             
@@ -318,11 +402,16 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                 op, text = diff[i]
                 
                 if op == 0:  # Égalité - texte correct (vert)
-                    # Dessiner en vert pour chaque caractère correspondant
+                    # Dessiner en utilisant la couleur du rectangle
                     for j in range(len(text)):
                         if rect_idx < len(valid_rects_final):
                             x, y, w, h = valid_rects_final[rect_idx]
-                            cv2.rectangle(result_image, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Vert
+                            # Utiliser la couleur du rectangle si disponible, sinon vert par défaut
+                            if isinstance(valid_rects_final[rect_idx], RectangleWithLine):
+                                color = valid_rects_final[rect_idx].color
+                            else:
+                                color = (0, 255, 0)  # Vert par défaut
+                            cv2.rectangle(result_image, (x, y), (x + w, y + h), color, 2)
                             rect_idx += 1
                     i += 1
                 
@@ -337,7 +426,12 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                         for j in range(len(added_text)):
                             if rect_idx < len(valid_rects_final):
                                 x, y, w, h = valid_rects_final[rect_idx]
-                                cv2.rectangle(result_image, (x, y), (x + w, y + h), (0, 165, 255), 2)  # Orange
+                                # Utiliser la couleur du rectangle si disponible, sinon orange par défaut
+                                if isinstance(valid_rects_final[rect_idx], RectangleWithLine):
+                                    color = valid_rects_final[rect_idx].color
+                                else:
+                                    color = (0, 165, 255)  # Orange par défaut
+                                cv2.rectangle(result_image, (x, y), (x + w, y + h), color, 2)
                                 differences_info.append({
                                     'type': 'wrong',
                                     'text': added_text[j] if j < len(added_text) else '',
@@ -367,26 +461,110 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                         context_after = reference_text[ref_pos + len(text):end_pos]
                         
                         # Calculer la position approximative dans l'image
-                        # Si on a des rectangles avant et après, placer le marqueur entre eux
+                        # IMPORTANT: valid_rects_final est ordonné de droite à gauche (ordre hébreu)
+                        # Donc valid_rects_final[0] est le plus à droite (début du texte)
+                        # et valid_rects_final[-1] est le plus à gauche (fin du texte)
                         marker_position = None
+                        
+                        # Calculer la largeur moyenne une fois au début (utilisée pour plusieurs choses)
+                        if len(valid_rects_final) > 0:
+                            avg_width = sum(r[2] if not isinstance(r, RectangleWithLine) else r.w for r in valid_rects_final) / len(valid_rects_final)
+                        else:
+                            avg_width = 50
+                        
+                        # Vérifier si on est à la fin d'une ligne
+                        is_end_of_line = False
+                        # Vérifier si on est au début d'une ligne (mais pas au début absolu)
+                        is_start_of_line = False
+                        
                         if rect_idx > 0 and rect_idx < len(valid_rects_final):
+                            # Vérifier si rect_idx-1 et rect_idx sont sur la même ligne
+                            rect_prev = valid_rects_final[rect_idx - 1]
+                            rect_next = valid_rects_final[rect_idx]
+                            
+                            # Utiliser line_number si disponible, sinon _in_same_line pour compatibilité
+                            if isinstance(rect_prev, RectangleWithLine) and isinstance(rect_next, RectangleWithLine):
+                                same_line = rect_prev.line_number == rect_next.line_number
+                            else:
+                                # Compatibilité avec les tuples (avg_width déjà calculé plus haut)
+                                same_line = _in_same_line(rect_prev, rect_next, avg_width)
+                            
+                            # Si les rectangles ne sont PAS sur la même ligne :
+                            # - rect_idx-1 est à la fin d'une ligne
+                            # - rect_idx est au début d'une nouvelle ligne
+                            is_end_of_line = not same_line and rect_idx > 0  # Fin de ligne si rect_idx-1 existe
+                            is_start_of_line = not same_line and rect_idx < len(valid_rects_final)  # Début de ligne si rect_idx existe
+                        elif rect_idx >= len(valid_rects_final):
+                            # Si on a traité tous les rectangles, on est forcément à la fin
+                            is_end_of_line = True
+                        elif rect_idx == 0:
+                            # Si rect_idx == 0, on est au début absolu
+                            is_start_of_line = True
+                        
+                        if rect_idx > 0 and rect_idx < len(valid_rects_final) and not is_end_of_line:
+                            # Cas 1: Lettre manquante entre deux rectangles détectés (même ligne)
                             # Position entre rect_idx-1 et rect_idx
                             x1, y1, w1, h1 = valid_rects_final[rect_idx - 1]
                             x2, y2, w2, h2 = valid_rects_final[rect_idx]
                             # Position au milieu entre les deux rectangles
+                            # En hébreu: rect_idx-1 est à droite, rect_idx est à gauche
+                            # La lettre manquante est entre les deux
                             marker_x = (x1 + w1 + x2) // 2
                             marker_y = min(y1, y2) + max(h1, h2) // 2
                             marker_w = 20
                             marker_h = max(h1, h2)
                             marker_position = (marker_x - marker_w // 2, marker_y, marker_w, marker_h)
-                        elif rect_idx > 0:
-                            # Position après le dernier rectangle
-                            x, y, w, h = valid_rects_final[rect_idx - 1]
-                            marker_position = (x - 30, y, 20, h)
-                        elif rect_idx < len(valid_rects_final):
-                            # Position avant le premier rectangle
-                            x, y, w, h = valid_rects_final[rect_idx]
-                            marker_position = (x + w + 10, y, 20, h)
+                        elif is_end_of_line or (rect_idx > 0 and rect_idx >= len(valid_rects_final)):
+                            # Cas 2: Lettre manquante à la fin de la ligne
+                            # Soit rect_idx-1 et rect_idx ne sont pas sur la même ligne,
+                            # soit on a traité tous les rectangles
+                            # Utiliser le dernier rectangle traité (rect_idx - 1) qui est sur la même ligne
+                            if rect_idx > 0 and len(valid_rects_final) > 0:
+                                # Le dernier rectangle traité est celui qui précède la lettre manquante
+                                x, y, w, h = valid_rects_final[rect_idx - 1]
+                                # Calculer un espacement basé sur la largeur moyenne
+                                spacing = max(20, int(avg_width * 0.5))  # Au moins 20px ou 50% de la largeur moyenne
+                                # En hébreu (droite à gauche), la fin est à gauche
+                                # Placer le marqueur à gauche du dernier rectangle traité
+                                marker_x = max(0, x - spacing)  # S'assurer qu'on ne sort pas de l'image
+                                marker_position = (marker_x, y, 20, h)
+                            elif len(valid_rects_final) > 0:
+                                # Fallback : utiliser le dernier rectangle de toute l'image
+                                x, y, w, h = valid_rects_final[-1]
+                                spacing = max(20, int(avg_width * 0.5))
+                                marker_x = max(0, x - spacing)
+                                marker_position = (marker_x, y, 20, h)
+                            else:
+                                # Pas de rectangles du tout - position par défaut
+                                marker_position = (10, 10, 20, 30)
+                        elif rect_idx > 0 and rect_idx < len(valid_rects_final):
+                            # Cas intermédiaire (ne devrait pas arriver avec la logique ci-dessus, mais sécurité)
+                            # Si is_end_of_line est False mais qu'on arrive ici, traiter comme Cas 1
+                            x1, y1, w1, h1 = valid_rects_final[rect_idx - 1]
+                            x2, y2, w2, h2 = valid_rects_final[rect_idx]
+                            marker_x = (x1 + w1 + x2) // 2
+                            marker_y = min(y1, y2) + max(h1, h2) // 2
+                            marker_w = 20
+                            marker_h = max(h1, h2)
+                            marker_position = (marker_x - marker_w // 2, marker_y, marker_w, marker_h)
+                        elif is_start_of_line or rect_idx == 0:
+                            # Cas 3: Lettre manquante au début d'une ligne
+                            # Le début du texte est à droite (ordre hébreu), donc à droite du premier rectangle de la ligne
+                            if rect_idx < len(valid_rects_final):
+                                # Utiliser le rectangle suivant (rect_idx) qui est le premier de la nouvelle ligne
+                                x, y, w, h = valid_rects_final[rect_idx]
+                                # Calculer un espacement basé sur la largeur moyenne
+                                spacing = max(20, int(avg_width * 0.5))
+                                # Placer à droite du rectangle (début de ligne en hébreu = à droite)
+                                marker_position = (x + w + spacing, y, 20, h)
+                            elif len(valid_rects_final) > 0:
+                                # Fallback : utiliser le premier rectangle (le plus à droite)
+                                x, y, w, h = valid_rects_final[0]
+                                spacing = max(20, int(avg_width * 0.5))
+                                marker_position = (x + w + spacing, y, 20, h)
+                            else:
+                                # Pas de rectangles du tout - position par défaut
+                                marker_position = (10, 10, 20, 30)
                         
                         # Dessiner un marqueur visuel pour la lettre manquante
                         if marker_position:
@@ -409,11 +587,16 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                         # Ne pas avancer rect_idx car il n'y a pas de rectangle dans detected_text
                 
                 elif op == 1:  # Ajouté dans detected_text = lettre en trop dans le texte détecté
-                    # Dessiner en bleu pour chaque caractère en trop
+                    # Dessiner en utilisant la couleur du rectangle
                     for j in range(len(text)):
                         if rect_idx < len(valid_rects_final):
                             x, y, w, h = valid_rects_final[rect_idx]
-                            cv2.rectangle(result_image, (x, y), (x + w, y + h), (255, 0, 0), 2)  # Bleu (BGR)
+                            # Utiliser la couleur du rectangle si disponible, sinon bleu par défaut
+                            if isinstance(valid_rects_final[rect_idx], RectangleWithLine):
+                                color = valid_rects_final[rect_idx].color
+                            else:
+                                color = (255, 0, 0)  # Bleu par défaut
+                            cv2.rectangle(result_image, (x, y), (x + w, y + h), color, 2)
                             differences_info.append({
                                 'type': 'extra',
                                 'text': text[j] if j < len(text) else '',
@@ -423,15 +606,70 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                             rect_idx += 1
                     i += 1
     else:
-        # Si pas de paracha détectée, dessiner tout en vert
-        for x, y, w, h in valid_rects_final:
-            cv2.rectangle(result_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        # Si pas de paracha détectée, dessiner tout en vert (ou utiliser la couleur du rectangle)
+        for rect in valid_rects_final:
+            if isinstance(rect, RectangleWithLine):
+                x, y, w, h = rect
+                color = rect.color
+            else:
+                x, y, w, h = rect
+                color = (0, 255, 0)  # Vert par défaut
+            cv2.rectangle(result_image, (x, y), (x + w, y + h), color, 2)
     
     # Encoder l'image en base64
     _, buffer = cv2.imencode('.jpg', result_image)
     image_base64 = base64.b64encode(buffer)
     
-    return image_base64, paracha_name, detected_text, differences_info
+    # Calcul du statut et des erreurs pour le front
+    missing_count = len([d for d in differences_info if d.get('type') == 'missing'])
+    extra_count = len([d for d in differences_info if d.get('type') == 'extra'])
+    wrong_count = len([d for d in differences_info if d.get('type') == 'wrong'])
+    has_errors = (missing_count + extra_count + wrong_count) > 0
+    
+    # Déterminer si la paracha est complète ou incomplète
+    # Une paracha est "חלקית" (incomplète) seulement si le texte détecté ne va pas jusqu'au bout
+    # de la paracha de référence, indépendamment des erreurs (missing, extra, wrong)
+    paracha_status = "complete"  # Par défaut, on considère que c'est complet
+    if paracha_name and paracha_name != "Non détectée" and paracha_name != "Aucune lettre détectée":
+        if reference_text:
+            # Normaliser les textes (enlever les espaces) pour comparer
+            detected_normalized = detected_text.replace(' ', '').replace('\n', '').replace('\r', '')
+            reference_normalized = reference_text.replace(' ', '').replace('\n', '').replace('\r', '')
+            
+            # Si le texte détecté est significativement plus court (plus de 10% plus court)
+            # OU si les dernières lettres de la référence ne sont pas présentes dans le texte détecté
+            len_detected = len(detected_normalized)
+            len_reference = len(reference_normalized)
+            
+            if len_reference > 0:
+                # Vérifier si le texte détecté couvre au moins 90% de la référence
+                coverage_ratio = len_detected / len_reference if len_reference > 0 else 0
+                
+                # Vérifier si les dernières lettres de la référence sont présentes
+                # Prendre les 10 dernières lettres de la référence (ou moins si la référence est courte)
+                last_chars_count = min(10, len_reference)
+                last_chars_reference = reference_normalized[-last_chars_count:]
+                
+                # Si le texte détecté ne contient pas les dernières lettres de la référence
+                # OU si la couverture est inférieure à 90%, alors c'est incomplet
+                if coverage_ratio < 0.90 or last_chars_reference not in detected_normalized:
+                    paracha_status = "incomplete"
+    
+    return (
+        image_base64,
+        paracha_name,
+        detected_text,
+        differences_info,
+        {
+            "paracha_status": paracha_status,
+            "has_errors": has_errors,
+            "errors": {
+                "missing": missing_count,
+                "extra": extra_count,
+                "wrong": wrong_count,
+            },
+        },
+    )
 
 def image_to_b64_string(image):
     """

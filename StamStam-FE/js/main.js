@@ -9,6 +9,14 @@ import { ImageCropper } from './imageCropper.js';
  */
 class App {
     constructor() {
+        // Vérifier si l'utilisateur est connecté
+        const userEmail = localStorage.getItem('stamstam_user_email');
+        if (!userEmail) {
+            // Rediriger vers la page de login si non connecté
+            window.location.href = 'login.html';
+            return;
+        }
+        
         this.ui = new UIManager();
         this.currentFile = null;
         this.currentImageBase64 = null;
@@ -16,6 +24,7 @@ class App {
         this.cropper = null;
         this.croppedFile = null;
         this.acceptedCroppedFile = null; // Image coupée acceptée par l'utilisateur
+        this.userEmail = userEmail;
         this.init();
     }
 
@@ -70,6 +79,20 @@ class App {
         this.ui.elements.resetBtn.addEventListener('click', () => {
             this.reset();
         });
+        
+        // Bouton de déconnexion
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                this.logout();
+            });
+        }
+        
+        // Afficher l'email de l'utilisateur
+        const userEmailEl = document.getElementById('userEmail');
+        if (userEmailEl) {
+            userEmailEl.textContent = this.userEmail;
+        }
 
         // Bouton de fermeture d'erreur
         this.ui.elements.errorCloseBtn.addEventListener('click', () => {
@@ -213,7 +236,7 @@ class App {
 
             // Utiliser l'image coupée acceptée si disponible, sinon l'originale
             const fileToSend = this.acceptedCroppedFile || this.currentFile;
-            const result = await ApiService.detectLetters(fileToSend);
+            const result = await ApiService.detectLetters(fileToSend, this.userEmail);
             
             this.currentImageBase64 = result.image;
             // Log pour vérifier que le texte est bien reçu
@@ -224,7 +247,15 @@ class App {
             console.log('Longueur de result.text:', result.text ? result.text.length : 0);
             
             // Afficher le résultat avec le nom de la paracha détectée, le texte et les différences
-            this.ui.showResults(result.image, result.paracha, result.text || '', result.differences || []);
+            this.ui.showResults(
+                result.image,
+                result.paracha,
+                result.text || '',
+                result.differences || [],
+                result.parachaStatus || null,
+                result.hasErrors,
+                result.errors || null
+            );
             this.ui.elements.panelTitle.textContent = 'זיהוי אותיות';
         } catch (error) {
             this.ui.showError(error.message || 'שגיאה בזיהוי האותיות');
@@ -384,6 +415,14 @@ class App {
         }
     }
 
+    /**
+     * Déconnexion de l'utilisateur
+     */
+    logout() {
+        localStorage.removeItem('stamstam_user_email');
+        window.location.href = 'login.html';
+    }
+    
     /**
      * Réinitialise l'application
      */

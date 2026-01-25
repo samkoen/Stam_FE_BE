@@ -1,129 +1,306 @@
 """
-Test de régression pour les images dans paracha_cacher/.
-Ce test vérifie que toutes les images dans paracha_cacher/ produisent un succès à 100%.
-Pas de fenêtres imshow, uniquement les logs et un résultat ✓ ou ✗ pour chaque fichier.
+Test de régression pour les images de test.
+Ce test vérifie que les images produisent les résultats attendus en termes de :
+- Nombre de lettres manquantes (missing)
+- Nombre de substitutions (wrong)
+- Nombre de lettres en trop (extra)
 
-Ce script utilise les fonctions de visualize_detect_letters.py pour éviter la duplication de code.
+Les fichiers à tester et leurs résultats attendus sont hardcodés dans ce script.
 """
 import os
 import sys
-import glob
 
 # Ajouter le chemin vers le backend pour les imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, backend_dir)
+# Ajouter aussi le dossier tests pour les imports locaux
+sys.path.insert(0, current_dir)
 
 # Importer la fonction de traitement depuis visualize_detect_letters
 from visualize_detect_letters import process_single_image
 
 
-def single_image_test(image_path):
+# Configuration des tests : fichiers et résultats attendus
+TEST_CONFIG = [
+    {
+        'filename': '001.jpg',
+        'expected': {
+            'missing': 0,
+            'substitution': 0,  # 'wrong' dans differences_info
+            'extra': 0
+        }
+    },
+    {
+        'filename': '002.jpg',
+        'expected': {
+            'missing': 0,
+            'substitution': 0,
+            'extra': 0
+        }
+    },
+    {
+        'filename': '003.jpg',
+        'expected': {
+            'missing': 0,
+            'substitution': 0,
+            'extra': 0
+        }
+    },
+    {
+        'filename': '004.jpg',
+        'expected': {
+            'missing': 0,
+            'substitution': 0,
+            'extra': 0
+        }
+    },
+{
+        'filename': '005.jpg',
+        'expected': {
+            'missing': 0,
+            'substitution': 0,  # 'wrong' dans differences_info
+            'extra': 0
+        }
+    },
+{
+        'filename': '006.jpg',
+        'expected': {
+            'missing': 0,
+            'substitution': 0,  # 'wrong' dans differences_info
+            'extra': 0
+        }
+    },
+{
+        'filename': '007.jpg',
+        'expected': {
+            'missing': 0,
+            'substitution': 0,
+            'extra': 1 # ds la marge basse du parchemin
+        }
+    },
+{
+        'filename': '009.jpg',
+        'expected': {
+            'missing': 0,
+            'substitution': 0,
+            'extra': 3 # ds les marges
+        }
+    },
+    {
+        'filename': 'chema_lettre_manquante_finedeligne.jpg',
+        'expected': {
+            'missing': 2,
+            'substitution': 0,
+            'extra': 0
+        }
+    },
+{
+        'filename': 'chema_sans_youd.jpg',
+        'expected': {
+            'missing': 1,
+            'substitution': 0,
+            'extra': 0
+        }
+    },
+{
+        'filename': 'chema_manque_un_mot.jpg',
+        'expected': {
+            'missing': 3,
+            'substitution': 0,
+            'extra': 0
+        }
+    },
+{
+        'filename': 'chema_manque_2 lignes.jpg',
+        'expected': {
+            'missing': 3,
+            'substitution': 1,
+            'extra': 1
+        }
+    },
+    {
+        'filename': 'vehaya_avec_un_mot_en_plus.jpg',
+        'expected': {
+            'missing': 0,
+            'substitution': 0,
+            'extra': 6
+        }
+    },
+    # Ajouter d'autres fichiers ici avec leurs résultats attendus
+
+]
+
+
+def count_differences(differences_info):
     """
-    Teste une seule image et retourne True si succès à 100%, False sinon.
-    Utilise process_single_image de visualize_detect_letters.py.
+    Compte les différents types de différences dans differences_info.
+    
+    Args:
+        differences_info: Liste de dictionnaires avec les différences
+        
+    Returns:
+        dict: {'missing': int, 'substitution': int, 'extra': int}
+    """
+    if differences_info is None:
+        return {'missing': 0, 'substitution': 0, 'extra': 0}
+    
+    counts = {'missing': 0, 'substitution': 0, 'extra': 0}
+    
+    for diff in differences_info:
+        diff_type = diff.get('type', '')
+        if diff_type == 'missing':
+            counts['missing'] += 1
+        elif diff_type == 'wrong':
+            counts['substitution'] += 1
+        elif diff_type == 'extra':
+            counts['extra'] += 1
+    
+    return counts
+
+
+def single_image_test(image_path, expected):
+    """
+    Teste une seule image et compare avec les résultats attendus.
     
     Args:
         image_path: Chemin vers l'image à tester
+        expected: Dictionnaire avec les résultats attendus {'missing': int, 'substitution': int, 'extra': int}
         
     Returns:
-        tuple: (success: bool, paracha_name: str, num_differences: int)
+        dict: {
+            'success': bool,
+            'filename': str,
+            'paracha_name': str,
+            'expected': dict,
+            'actual': dict,
+            'match': dict  # {'missing': bool, 'substitution': bool, 'extra': bool}
+        }
     """
+    filename = os.path.basename(image_path)
+    
     try:
         # Utiliser la fonction partagée de visualize_detect_letters
         # show_contours=False: pas d'imshow pour les contours
-        # debug=True: activer les logs détaillés
+        # debug=False: pas de logs détaillés pour le test
         # save_result=False: ne pas sauvegarder l'image
         result = process_single_image(
             image_path,
             show_contours=False,
-            debug=True,
+            debug=False,
             save_result=False
         )
         
         if result is None:
-            print(f"  ✗ ERREUR: Impossible de traiter l'image : {image_path}")
-            return False, "ERREUR", -1
+            return {
+                'success': False,
+                'filename': filename,
+                'paracha_name': 'ERREUR',
+                'expected': expected,
+                'actual': None,
+                'match': None,
+                'error': 'Impossible de traiter l\'image'
+            }
         
-        img_base64, paracha_name, detected_text, differences_info, result_image = result
+        img_base64, paracha_name, detected_text, differences_info, summary, result_image = result
         
-        # Vérifier si c'est un succès (pas de différences)
-        # differences_info peut être None ou une liste vide []
-        if differences_info is None:
-            num_differences = 0
-            success = False  # None signifie une erreur
-        else:
-            num_differences = len(differences_info)
-            success = num_differences == 0  # Succès si pas de différences
+        # Compter les différences
+        actual = count_differences(differences_info)
         
-        return success, paracha_name, num_differences
+        # Comparer avec les résultats attendus
+        match = {
+            'missing': actual['missing'] == expected['missing'],
+            'substitution': actual['substitution'] == expected['substitution'],
+            'extra': actual['extra'] == expected['extra']
+        }
+        
+        # Succès si tous les compteurs correspondent
+        success = all(match.values())
+        
+        return {
+            'success': success,
+            'filename': filename,
+            'paracha_name': paracha_name,
+            'expected': expected,
+            'actual': actual,
+            'match': match
+        }
         
     except Exception as e:
-        print(f"  ✗ ERREUR: Exception lors du traitement : {e}")
-        import traceback
-        traceback.print_exc()
-        return False, "ERREUR", -1
+        return {
+            'success': False,
+            'filename': filename,
+            'paracha_name': 'ERREUR',
+            'expected': expected,
+            'actual': None,
+            'match': None,
+            'error': str(e)
+        }
 
 
 def main():
     """
-    Fonction principale qui teste toutes les images dans paracha_cacher/.
+    Fonction principale qui teste toutes les images configurées.
     """
-    # Chemin vers le dossier paracha_cacher
-    paracha_cacher_dir = os.path.join(current_dir, 'paracha_cacher')
+    # Chemin vers le dossier de test
+    test_images_dir = os.path.join(current_dir, 'regression_test_images')
     
-    if not os.path.exists(paracha_cacher_dir):
-        print(f"Erreur: Dossier paracha_cacher non trouvé : {paracha_cacher_dir}")
-        return
-    
-    # Trouver toutes les images dans paracha_cacher
-    # Utiliser un set pour éviter les doublons
-    image_extensions = ['*.jpg', '*.jpeg', '*.png', '*.JPG', '*.JPEG', '*.PNG']
-    image_files_set = set()
-    for ext in image_extensions:
-        found_files = glob.glob(os.path.join(paracha_cacher_dir, ext))
-        image_files_set.update(found_files)
-    
-    # Convertir en liste et trier par nom de fichier
-    image_files = sorted(list(image_files_set))
-    
-    if not image_files:
-        print(f"Aucune image trouvée dans : {paracha_cacher_dir}")
+    if not os.path.exists(test_images_dir):
+        print(f"Erreur: Dossier regression_test_images non trouvé : {test_images_dir}")
         return
     
     print("="*80)
-    print("TEST DE RÉGRESSION - PARACHA CACHER")
+    print("TEST DE RÉGRESSION - IMAGES DE TEST")
     print("="*80)
-    print(f"Nombre d'images à tester : {len(image_files)}")
+    print(f"Nombre d'images à tester : {len(TEST_CONFIG)}")
     print()
     
     # Résultats
     results = []
     success_count = 0
-    total_count = len(image_files)
+    total_count = len(TEST_CONFIG)
     
     # Tester chaque image
-    for image_path in image_files:
-        filename = os.path.basename(image_path)
-        print(f"Test: {filename}", end=" ... ")
+    for test_config in TEST_CONFIG:
+        filename = test_config['filename']
+        expected = test_config['expected']
+        image_path = os.path.join(test_images_dir, filename)
         
-        success, paracha_name, num_differences = single_image_test(image_path)
+        if not os.path.exists(image_path):
+            print(f"✗ {filename}: FICHIER NON TROUVÉ")
+            results.append({
+                'success': False,
+                'filename': filename,
+                'paracha_name': 'N/A',
+                'expected': expected,
+                'actual': None,
+                'match': None,
+                'error': 'Fichier non trouvé'
+            })
+            continue
         
-        if success:
-            print(f"✓ SUCCÈS (paracha: {paracha_name})")
+        print(f"Test: {filename} ... ", end="", flush=True)
+        
+        result = single_image_test(image_path, expected)
+        results.append(result)
+        
+        if result['success']:
+            print("✓ SUCCÈS")
             success_count += 1
         else:
-            if num_differences >= 0:
-                print(f"✗ ÉCHEC (paracha: {paracha_name}, différences: {num_differences})")
+            print("✗ ÉCHEC")
+            if 'error' in result:
+                print(f"  Erreur: {result['error']}")
             else:
-                print(f"✗ ERREUR")
-        
-        results.append({
-            'filename': filename,
-            'success': success,
-            'paracha_name': paracha_name,
-            'num_differences': num_differences
-        })
+                print(f"  Paracha: {result['paracha_name']}")
+                print(f"  Attendu: missing={expected['missing']}, substitution={expected['substitution']}, extra={expected['extra']}")
+                print(f"  Obtenu: missing={result['actual']['missing']}, substitution={result['actual']['substitution']}, extra={result['actual']['extra']}")
+                if not result['match']['missing']:
+                    print(f"    ✗ Missing: attendu {expected['missing']}, obtenu {result['actual']['missing']}")
+                if not result['match']['substitution']:
+                    print(f"    ✗ Substitution: attendu {expected['substitution']}, obtenu {result['actual']['substitution']}")
+                if not result['match']['extra']:
+                    print(f"    ✗ Extra: attendu {expected['extra']}, obtenu {result['actual']['extra']}")
     
     # Résumé final
     print()
@@ -139,8 +316,24 @@ def main():
     failures = [r for r in results if not r['success']]
     if failures:
         print("Détails des échecs :")
+        print("-" * 80)
         for r in failures:
-            print(f"  - {r['filename']}: paracha={r['paracha_name']}, différences={r['num_differences']}")
+            print(f"Fichier: {r['filename']}")
+            if 'error' in r:
+                print(f"  Erreur: {r['error']}")
+            else:
+                print(f"  Paracha: {r['paracha_name']}")
+                print(f"  Attendu: missing={r['expected']['missing']}, substitution={r['expected']['substitution']}, extra={r['expected']['extra']}")
+                if r['actual']:
+                    print(f"  Obtenu: missing={r['actual']['missing']}, substitution={r['actual']['substitution']}, extra={r['actual']['extra']}")
+                    if r['match']:
+                        if not r['match']['missing']:
+                            print(f"    ✗ Missing: attendu {r['expected']['missing']}, obtenu {r['actual']['missing']}")
+                        if not r['match']['substitution']:
+                            print(f"    ✗ Substitution: attendu {r['expected']['substitution']}, obtenu {r['actual']['substitution']}")
+                        if not r['match']['extra']:
+                            print(f"    ✗ Extra: attendu {r['expected']['extra']}, obtenu {r['actual']['extra']}")
+            print()
     else:
         print("Tous les tests sont passés avec succès ! ✓")
     
@@ -149,4 +342,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

@@ -3,6 +3,7 @@ Module pour ordonner les rectangles de droite à gauche et de haut en bas
 (ordre de lecture hébraïque)
 """
 import math
+from BE_Model_Cursor.utils.rectangle_with_line import RectangleWithLine
 
 
 def follow_rect(self_rect, let_rect, width_mean):
@@ -79,31 +80,51 @@ def sort_rectangles_by_lines(rects, debug=False, image=None):
     Returns:
         list: Liste ordonnée des rectangles (de droite à gauche, haut en bas)
     """
+    flat_list, _ = _sort_rectangles_by_lines_with_lines(rects, debug, image)
+    return flat_list
+
+
+def _sort_rectangles_by_lines_with_lines(rects, debug=False, image=None):
+    """
+    Version de sort_rectangles_by_lines qui retourne aussi les lignes pour le debug.
+
+    Returns:
+        tuple: (flat_list, lines) où flat_list est la liste aplatie et lines est la liste des lignes
+    """
     if not rects:
-        return []
+        return [], []
 
     # Calculer la largeur moyenne
-    width_mean = sum(r[2] for r in rects) / len(rects) if rects else 50
+    # Extraire w si RectangleWithLine, sinon utiliser l'index [2]
+    width_mean = sum(r.w if isinstance(r, RectangleWithLine) else r[2] for r in rects) / len(rects) if rects else 50
 
     if debug:
-        print(f"\n=== DEBUG ORDONNANCEMENT ===")
-        print(f"Nombre de rectangles: {len(rects)}")
-        print(f"Largeur moyenne: {width_mean:.2f}")
+        print(f"\n=== DEBUG ORDONNANCEMENT (Étape 7) ===")
+        print(f"Nombre de rectangles à trier: {len(rects)}")
+        print(f"Largeur moyenne des rectangles: {width_mean:.2f}")
 
     # Trier par position x décroissante (de droite à gauche)
     # Comme dans sort_contour: letters.sort(key=lambda b: b.rect[0]+b.rect[2],reverse=True)
-    sorted_rects = sorted(rects, key=lambda r: r[0] + r[2], reverse=True)
+    # Extraire x et w si RectangleWithLine, sinon utiliser les index
+    sorted_rects = sorted(rects, key=lambda r: (r.x if isinstance(r, RectangleWithLine) else r[0]) + (r.w if isinstance(r, RectangleWithLine) else r[2]), reverse=True)
 
     if debug:
-        print(f"\nRectangles triés (droite à gauche):")
+        print(f"\nRectangles triés initialement (droite à gauche):")
         for idx, rect in enumerate(sorted_rects[:5]):  # Afficher les 5 premiers
-            print(f"  {idx}: x={rect[0]}, y={rect[1]}, w={rect[2]}, h={rect[3]}")
+            if isinstance(rect, RectangleWithLine):
+                print(f"  [{idx}] x={rect.x}, y={rect.y}, w={rect.w}, h={rect.h} (x_fin={rect.x+rect.w})")
+            else:
+                print(f"  [{idx}] x={rect[0]}, y={rect[1]}, w={rect[2]}, h={rect[3]} (x_fin={rect[0]+rect[2]})")
 
     # Grouper en lignes (comme dans sort_contour)
     lines = [[sorted_rects[0]]]  # Première ligne avec le premier rectangle
 
     if debug:
         print(f"\nDébut du groupement en lignes...")
+        if isinstance(sorted_rects[0], RectangleWithLine):
+            print(f"  -> Ligne 0 créée avec le premier rectangle (x={sorted_rects[0].x}, y={sorted_rects[0].y})")
+        else:
+            print(f"  -> Ligne 0 créée avec le premier rectangle (x={sorted_rects[0][0]}, y={sorted_rects[0][1]})")
 
     # Copie exacte de la boucle dans sort_contour
     for i in range(1, len(sorted_rects)):
@@ -112,9 +133,13 @@ def sort_rectangles_by_lines(rects, debug=False, image=None):
         last_idx = -1
 
         if debug:
-            print(f"\nRectangle {i}: x={current_rect[0]}, y={current_rect[1]}, w={current_rect[2]}, h={current_rect[3]}")
+            if isinstance(current_rect, RectangleWithLine):
+                print(f"\nTraitement Rectangle {i}: x={current_rect.x}, y={current_rect.y}, w={current_rect.w}, h={current_rect.h}")
+            else:
+                print(f"\nTraitement Rectangle {i}: x={current_rect[0]}, y={current_rect[1]}, w={current_rect[2]}, h={current_rect[3]}")
 
         # Copie exacte: while len(follow_letters)==0 and last_idx > -3
+        # On regarde jusqu'à 3 rectangles en arrière dans chaque ligne existante
         while len(follow_candidates) == 0 and last_idx > -3:
             line_idx = 0
             for current_line in lines:
@@ -126,21 +151,41 @@ def sort_rectangles_by_lines(rects, debug=False, image=None):
                 last_rect_in_line = current_line[last_idx]
                 # Copie exacte: h = letters[i].follow(last_rect, width_mean)
                 # Dans Letter.follow: self=letters[i], let=last_rect
-                h_overlap = follow_rect(current_rect, last_rect_in_line, width_mean)
+                # Extraire les coordonnées si RectangleWithLine pour follow_rect
+                current_rect_tuple = (current_rect.x, current_rect.y, current_rect.w, current_rect.h) if isinstance(current_rect, RectangleWithLine) else current_rect
+                last_rect_tuple = (last_rect_in_line.x, last_rect_in_line.y, last_rect_in_line.w, last_rect_in_line.h) if isinstance(last_rect_in_line, RectangleWithLine) else last_rect_in_line
+                h_overlap = follow_rect(current_rect_tuple, last_rect_tuple, width_mean)
 
                 if debug:
                     # Debug détaillé pour comprendre pourquoi certains rectangles sont mal groupés
-                    s = max(current_rect[1], last_rect_in_line[1])
-                    h_calc = min(current_rect[1] + current_rect[3], last_rect_in_line[1] + last_rect_in_line[3]) - s
-                    dist_horiz = last_rect_in_line[0] - (current_rect[0] + current_rect[2])
+                    # Extraire les coordonnées si RectangleWithLine
+                    current_y = current_rect.y if isinstance(current_rect, RectangleWithLine) else current_rect[1]
+                    current_h = current_rect.h if isinstance(current_rect, RectangleWithLine) else current_rect[3]
+                    current_x = current_rect.x if isinstance(current_rect, RectangleWithLine) else current_rect[0]
+                    current_w = current_rect.w if isinstance(current_rect, RectangleWithLine) else current_rect[2]
+                    last_y = last_rect_in_line.y if isinstance(last_rect_in_line, RectangleWithLine) else last_rect_in_line[1]
+                    last_h = last_rect_in_line.h if isinstance(last_rect_in_line, RectangleWithLine) else last_rect_in_line[3]
+                    last_x = last_rect_in_line.x if isinstance(last_rect_in_line, RectangleWithLine) else last_rect_in_line[0]
+                    last_w = last_rect_in_line.w if isinstance(last_rect_in_line, RectangleWithLine) else last_rect_in_line[2]
+                    s = max(current_y, last_y)
+                    h_calc = min(current_y + current_h, last_y + last_h) - s
+                    dist_horiz = last_x - (current_x + current_w)
+
                     if h_overlap:
-                        print(f"  -> Match avec ligne {line_idx}, dernier rect (idx {last_idx}): "
-                              f"x={last_rect_in_line[0]}, y={last_rect_in_line[1]}, "
-                              f"h_overlap={h_overlap:.2f}, dist_horiz={dist_horiz:.1f}")
-                    elif i < 50:  # Debug pour les 50 premiers rectangles pour voir les non-matchs
-                        print(f"  -> Pas de match ligne {line_idx} (idx {last_idx}): "
-                              f"h_calc={h_calc:.1f}, dist_horiz={dist_horiz:.1f}, "
-                              f"seuil_dist={width_mean*8:.1f}")
+                        print(f"    -> MATCH POSSIBLE avec Ligne {line_idx} (rect idx {last_idx} depuis la fin):")
+                        print(f"       Candidat: x={last_x}, y={last_y}, h_overlap={h_overlap:.2f}, dist_horiz={dist_horiz:.1f}")
+                    else:
+                        # Expliquer pourquoi ça ne matche pas
+                        reason = ""
+                        height_mean_pair = (current_h + last_h) / 2
+                        y_diff = abs(current_y - last_y)
+
+                        if h_calc <= 1 and not (h_calc > 0.3 * height_mean_pair or y_diff < 0.5 * height_mean_pair):
+                            reason = f"Pas assez de chevauchement vertical (h={h_calc:.1f})"
+                        elif dist_horiz >= width_mean * 8:
+                            reason = f"Trop loin horizontalement (dist={dist_horiz:.1f} >= {width_mean * 8:.1f})"
+
+                        print(f"    -> Pas de match Ligne {line_idx} (rect idx {last_idx}): {reason}")
 
                 # Copie exacte: if h: follow_letters.append((letters[i], h, line, last_rect))
                 if h_overlap:
@@ -154,17 +199,17 @@ def sort_rectangles_by_lines(rects, debug=False, image=None):
         # Copie exacte: if len(follow_letters)==0: lines.append([letters[i]])
         if len(follow_candidates) == 0:
             if debug:
-                print(f"  -> Nouvelle ligne créée (ligne {len(lines)})")
+                print(f"  -> AUCUN MATCH TROUVÉ. Nouvelle ligne créée (Ligne {len(lines)})")
             lines.append([current_rect])
         else:
             # Copie exacte: follow_letter = max(follow_letters, key=lambda f: f[1])
             best_match = max(follow_candidates, key=lambda f: f[1])
             line_idx = best_match[2]
-            
+
             if debug:
-                print(f"  -> Ajouté à la ligne {line_idx} (h_overlap={best_match[1]:.2f})")
-            
-            # Copie exacte: 
+                print(f"  -> AJOUTÉ à la Ligne {line_idx} (Meilleur chevauchement: {best_match[1]:.2f})")
+
+            # Copie exacte:
             # try:
             #     if not is_include(lines[follow_letter[2]][last_idx+1], letters[i]):
             #         lines[follow_letter[2]].append(letters[i])
@@ -180,142 +225,62 @@ def sort_rectangles_by_lines(rects, debug=False, image=None):
                         lines[line_idx].append(current_rect)
                     else:
                         if debug:
-                            print(f"  -> Ignoré (inclus dans rect de la ligne)")
+                            print(f"  -> IGNORÉ (car inclus dans un autre rectangle de la ligne)")
                         # pass (comme dans l'original)
                 else:
                     lines[line_idx].append(current_rect)
             except Exception as e:
                 if debug:
-                    print(f"  -> Exception: {e}")
-                # pass (comme dans l'original, mais on ne crée pas de nouvelle ligne)
-
-    # Trier les lignes de haut en bas (par y croissant du coin supérieur droit)
-    # Utiliser le rectangle le plus à droite de chaque ligne (premier dans la liste, déjà trié de droite à gauche)
-    # et utiliser son y (coin supérieur droit)
-    lines.sort(key=lambda line: line[0][1])  # y du coin supérieur droit du rectangle le plus à droite
-
-    if debug:
-        print(f"\n=== RÉSULTAT FINAL ===")
-        print(f"Nombre de lignes: {len(lines)}")
-        for line_idx, line in enumerate(lines):
-            first_rect = line[0]
-            top_right_x = first_rect[0] + first_rect[2]
-            print(f"Ligne {line_idx} (coin sup droit: x={top_right_x}, y={first_rect[1]}): {len(line)} rectangles")
-            for rect_idx, rect in enumerate(line[:3]):  # Afficher les 3 premiers de chaque ligne
-                top_right_x_rect = rect[0] + rect[2]
-                print(f"  {rect_idx}: coin sup droit (x={top_right_x_rect}, y={rect[1]}), coin inf gauche (x={rect[0]}, y={rect[1]+rect[3]})")
-
-    # Aplatir la liste (les rectangles dans chaque ligne sont déjà de droite à gauche)
-    # Comme dans sort_contour: flat_list = [item for sublist in lines for item in sublist]
-    flat_list = [rect for line in lines for rect in line]
-
-    return flat_list
-
-
-def _sort_rectangles_by_lines_with_lines(rects, debug=False, image=None):
-    """
-    Version de sort_rectangles_by_lines qui retourne aussi les lignes pour le debug.
-    
-    Returns:
-        tuple: (flat_list, lines) où flat_list est la liste aplatie et lines est la liste des lignes
-    """
-    if not rects:
-        return [], []
-
-    # Calculer la largeur moyenne
-    width_mean = sum(r[2] for r in rects) / len(rects) if rects else 50
-
-    if debug:
-        print(f"\n=== DEBUG ORDONNANCEMENT ===")
-        print(f"Nombre de rectangles: {len(rects)}")
-        print(f"Largeur moyenne: {width_mean:.2f}")
-
-    # Trier par position x décroissante (de droite à gauche)
-    sorted_rects = sorted(rects, key=lambda r: r[0] + r[2], reverse=True)
-
-    if debug:
-        print(f"\nRectangles triés (droite à gauche):")
-        for idx, rect in enumerate(sorted_rects[:10]):  # Afficher les 10 premiers
-            print(f"  {idx}: x={rect[0]}, y={rect[1]}, w={rect[2]}, h={rect[3]}")
-
-    # Grouper en lignes
-    lines = [[sorted_rects[0]]]
-
-    if debug:
-        print(f"\nDébut du groupement en lignes...")
-
-    for i in range(1, len(sorted_rects)):
-        current_rect = sorted_rects[i]
-        follow_candidates = []
-        last_idx = -1
-
-        if debug and i < 20:  # Debug seulement pour les 20 premiers
-            print(f"\nRectangle {i}: x={current_rect[0]}, y={current_rect[1]}, w={current_rect[2]}, h={current_rect[3]}")
-
-        while len(follow_candidates) == 0 and last_idx > -3:
-            line_idx = 0
-            for current_line in lines:
-                if len(current_line) < abs(last_idx):
-                    line_idx += 1
-                    continue
-
-                last_rect_in_line = current_line[last_idx]
-                h_overlap = follow_rect(current_rect, last_rect_in_line, width_mean)
-
-                if debug and i < 20 and h_overlap:
-                    print(f"  -> Match avec ligne {line_idx}, dernier rect (idx {last_idx}): "
-                          f"x={last_rect_in_line[0]}, y={last_rect_in_line[1]}, "
-                          f"h_overlap={h_overlap:.2f}")
-
-                if h_overlap:
-                    follow_candidates.append((current_rect, h_overlap, line_idx, last_rect_in_line))
-
-                line_idx += 1
-
-            last_idx -= 1
-
-        if len(follow_candidates) == 0:
-            if debug and i < 20:
-                print(f"  -> Nouvelle ligne créée (ligne {len(lines)})")
-            lines.append([current_rect])
-        else:
-            best_match = max(follow_candidates, key=lambda f: f[1])
-            line_idx = best_match[2]
-            
-            if debug and i < 20:
-                print(f"  -> Ajouté à la ligne {line_idx} (h_overlap={best_match[1]:.2f})")
-            
-            try:
-                check_idx = last_idx + 1
-                if check_idx < len(lines[line_idx]):
-                    check_rect = lines[line_idx][check_idx]
-                    if not is_rect_included(check_rect, current_rect):
-                        lines[line_idx].append(current_rect)
-                    else:
-                        if debug and i < 20:
-                            print(f"  -> Ignoré (inclus dans rect de la ligne)")
-                else:
-                    lines[line_idx].append(current_rect)
-            except Exception as e:
-                if debug and i < 20:
-                    print(f"  -> Exception: {e}")
+                    print(f"  -> Exception lors de l'ajout: {e}")
                 lines.append([current_rect])
 
     # Trier les lignes de haut en bas (par y du coin supérieur droit)
-    lines.sort(key=lambda line: line[0][1])
+    # Extraire y si RectangleWithLine, sinon utiliser l'index [1]
+    lines.sort(key=lambda line: line[0].y if isinstance(line[0], RectangleWithLine) else line[0][1])  # y du coin supérieur droit du rectangle le plus à droite
 
     if debug:
-        print(f"\n=== RÉSULTAT FINAL ===")
-        print(f"Nombre de lignes: {len(lines)}")
+        print(f"\n=== RÉSULTAT FINAL DE L'ORDONNANCEMENT ===")
+        print(f"Nombre de lignes formées: {len(lines)}")
         for line_idx, line in enumerate(lines):
             first_rect = line[0]
-            top_right_x = first_rect[0] + first_rect[2]
-            print(f"Ligne {line_idx} (coin sup droit: x={top_right_x}, y={first_rect[1]}): {len(line)} rectangles")
-            for rect_idx, rect in enumerate(line[:5]):  # Afficher les 5 premiers de chaque ligne
-                top_right_x_rect = rect[0] + rect[2]
-                print(f"  {rect_idx}: coin sup droit (x={top_right_x_rect}, y={rect[1]}), coin inf gauche (x={rect[0]}, y={rect[1]+rect[3]})")
+            last_rect = line[-1]
 
-    flat_list = [rect for line in lines for rect in line]
+            # Extraire les coordonnées
+            if isinstance(first_rect, RectangleWithLine):
+                top_right_x = first_rect.x + first_rect.w
+                first_y = first_rect.y
+                last_x = last_rect.x
+            else:
+                top_right_x = first_rect[0] + first_rect[2]
+                first_y = first_rect[1]
+                last_x = last_rect[0]
+
+            print(f"Ligne {line_idx}: {len(line)} rectangles")
+            print(f"  - Commence à x={top_right_x} (droite), y={first_y}")
+            print(f"  - Finit à x={last_x} (gauche)")
+
+            # Afficher quelques détails
+            # for rect_idx, rect in enumerate(line[:3]):  # Afficher les 3 premiers de chaque ligne
+            #     if isinstance(rect, RectangleWithLine):
+            #         print(f"    Rect {rect_idx}: x={rect.x}, y={rect.y}")
+            #     else:
+            #         print(f"    Rect {rect_idx}: x={rect[0]}, y={rect[1]}")
+
+    # Aplatir la liste en créant des RectangleWithLine avec le numéro de ligne
+    # Les rectangles dans chaque ligne sont déjà de droite à gauche
+    flat_list = []
+    text_position = 0
+    for line_idx, line in enumerate(lines):
+        for rect in line:
+            # Créer un RectangleWithLine avec le numéro de ligne
+            # Conserver detected_letter si déjà présent
+            # Initialiser text_position avec l'ordre séquentiel
+            if isinstance(rect, RectangleWithLine):
+                # Conserver la couleur si elle existe, sinon utiliser la valeur par défaut
+                rect_with_line = RectangleWithLine(rect.x, rect.y, rect.w, rect.h, line_idx, rect.detected_letter, text_position, rect.color)
+            else:
+                rect_with_line = RectangleWithLine(rect[0], rect[1], rect[2], rect[3], line_idx, None, text_position)
+            flat_list.append(rect_with_line)
+            text_position += 1
 
     return flat_list, lines
-

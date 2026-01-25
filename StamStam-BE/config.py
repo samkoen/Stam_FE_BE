@@ -36,6 +36,12 @@ class Config:
         str(BASE_DIR / 'overflow')
     )
     
+    # Chemin vers le dossier de stockage des images utilisateur
+    USER_STORAGE_DIR = os.getenv(
+        'STAMSTAM_USER_STORAGE_DIR',
+        str(BASE_DIR / 'user_storage')
+    )
+    
     # ==================== Configuration du serveur ====================
     # Host et port pour le serveur FastAPI
     HOST = os.getenv('STAMSTAM_HOST', '0.0.0.0')
@@ -106,17 +112,24 @@ class Config:
         """
         Affiche la configuration actuelle (sans les valeurs sensibles).
         """
+        import sys
+        # Gérer l'encodage pour Windows
+        if sys.stdout.encoding and 'cp' in sys.stdout.encoding.lower():
+            env_desc = 'Production' if cls.IS_PRODUCTION else 'Development'
+        else:
+            env_desc = 'Production' if cls.IS_PRODUCTION else 'Développement'
+        
         print("=" * 60)
         print("Configuration StamStam")
         print("=" * 60)
-        print(f"Environnement: {cls.ENV} ({'Production' if cls.IS_PRODUCTION else 'Développement'})")
+        print(f"Environnement: {cls.ENV} ({env_desc})")
         print(f"DEBUG: {cls.DEBUG}")
         print(f"MODEL_PATH: {cls.MODEL_PATH}")
         print(f"OVERFLOW_DIR: {cls.OVERFLOW_DIR}")
         print(f"Host: {cls.HOST}")
         print(f"Port: {cls.PORT}")
         print(f"CORS Origins: {cls.CORS_ORIGINS}")
-        print(f"LOG_FILE: {cls.LOG_FILE or 'stdout uniquement'}")
+        print(f"LOG_FILE: {cls.LOG_FILE or 'stdout only'}")
         print(f"LOG_LEVEL: {cls.LOG_LEVEL}")
         print(f"MAX_UPLOAD_SIZE: {cls.MAX_UPLOAD_SIZE_MB} MB")
         print("=" * 60)

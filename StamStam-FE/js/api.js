@@ -46,12 +46,18 @@ export class ApiService {
     /**
      * Détecte les lettres dans une image
      * @param {File} file - Fichier image à traiter
+     * @param {string} email - Email de l'utilisateur
      * @returns {Promise<Object>} Résultat avec l'image, les lettres détectées et le nom de la paracha
      */
-    static async detectLetters(file) {
+    static async detectLetters(file, email) {
         try {
+            if (!email || !email.includes('@')) {
+                throw new Error('אימייל לא תקין');
+            }
+            
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('email', email);
 
             const response = await fetch(config.API_DETECT_LETTERS, {
                 method: 'POST',
@@ -83,7 +89,10 @@ export class ApiService {
                 image: data.image,
                 paracha: data.paracha || 'לא זוהה',
                 text: data.text || '',
-                differences: data.differences || []
+                differences: data.differences || [],
+                parachaStatus: data.paracha_status || null,
+                hasErrors: data.has_errors ?? null,
+                errors: data.errors || null
             };
         } catch (error) {
             if (error instanceof TypeError && error.message.includes('fetch')) {

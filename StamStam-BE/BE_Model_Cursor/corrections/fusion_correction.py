@@ -5,7 +5,8 @@ from typing import List, Tuple
 import numpy as np
 from BE_Model_Cursor.corrections.base_correction import BaseCorrection, CorrectionResult
 from BE_Model_Cursor.models.letter_predictor import predict_letters, letter_code_to_hebrew
-from BE_Model_Cursor.utils.contour_detector import union_rect
+from BE_Model_Cursor.utils.contour_detector import union_rect, _in_same_line
+from BE_Model_Cursor.utils.rectangle_with_line import RectangleWithLine
 
 
 class FusionCorrection(BaseCorrection):
@@ -33,12 +34,51 @@ class FusionCorrection(BaseCorrection):
         if rect_idx + num_rects - 1 >= len(valid_rects_final):
             return CorrectionResult(success=False, metadata={'reason': 'Not enough rectangles'})
         
+        # Vérifier que tous les rectangles à fusionner sont sur la même ligne
+        # Utiliser line_number si disponible, sinon utiliser _in_same_line pour compatibilité
+        for j in range(num_rects - 1):
+            rect_i = valid_rects_final[rect_idx + j]
+            rect_j = valid_rects_final[rect_idx + j + 1]
+            
+            # Si les deux rectangles sont des RectangleWithLine, utiliser line_number
+            if isinstance(rect_i, RectangleWithLine) and isinstance(rect_j, RectangleWithLine):
+                if rect_i.line_number != rect_j.line_number:
+                    return CorrectionResult(
+                        success=False, 
+                        metadata={'reason': f'Rectangles {rect_idx + j} (line {rect_i.line_number}) and {rect_idx + j + 1} (line {rect_j.line_number}) not on same line'}
+                    )
+            else:
+                # Compatibilité avec les tuples : utiliser _in_same_line
+                if len(valid_rects_final) > 0:
+                    width_mean = sum(r[2] if not isinstance(r, RectangleWithLine) else r.w for r in valid_rects_final) / len(valid_rects_final)
+                else:
+                    width_mean = 50
+                if not _in_same_line(rect_i, rect_j, width_mean):
+                    return CorrectionResult(
+                        success=False, 
+                        metadata={'reason': f'Rectangles {rect_idx + j} and {rect_idx + j + 1} not on same line'}
+                    )
+        
+        # Tous les rectangles sont sur la même ligne → on peut fusionner
         # Fusionner tous les rectangles (N rectangles en 1)
         # Commencer avec le premier rectangle
-        fused_rect = valid_rects_final[rect_idx]
+        first_rect = valid_rects_final[rect_idx]
+        # Extraire (x, y, w, h) si RectangleWithLine
+        if isinstance(first_rect, RectangleWithLine):
+            fused_rect = (first_rect.x, first_rect.y, first_rect.w, first_rect.h)
+            line_number = first_rect.line_number  # Conserver le numéro de ligne
+        else:
+            fused_rect = first_rect
+            line_number = None  # Pas de numéro de ligne disponible
+        
         for j in range(1, num_rects):
             rect_j = valid_rects_final[rect_idx + j]
-            fused_rect = union_rect(fused_rect, rect_j)
+            # Extraire (x, y, w, h) si RectangleWithLine
+            if isinstance(rect_j, RectangleWithLine):
+                rect_j_tuple = (rect_j.x, rect_j.y, rect_j.w, rect_j.h)
+            else:
+                rect_j_tuple = rect_j
+            fused_rect = union_rect(fused_rect, rect_j_tuple)
         
         # Prédire la lettre sur le rectangle fusionné
         fused_rects = [fused_rect]
@@ -58,13 +98,15 @@ class FusionCorrection(BaseCorrection):
                         new_codes=[fused_codes[0]],
                         num_rects_to_replace=num_rects,
                         metadata={
+                            'rect_to_replace_idx': rect_idx,  # Index du premier rectangle à remplacer
                             'num_rects_fused': num_rects,
                             'detected_chars': detected_chars,
                             'fused_char': fused_char
                         }
                     )
             else:
-                # Pas d'expected_char, accepter la fusion si c'est une lettre valide
+                # Pas d'expected_char fourni - accepter la fusion si c'est une lettre valide (non-bruit)
+                # La validation se fera dans text_alignment.py en comparant avec les lettres attendues
                 return CorrectionResult(
                     success=True,
                     new_rects=[fused_rect],

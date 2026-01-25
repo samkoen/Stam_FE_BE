@@ -24,11 +24,16 @@ from main import (
 )
 from BE_Model_Cursor.letter_detection import detect_letters
 from BE_Model_Cursor.utils.logger import get_logger
+from BE_Model_Cursor.storage import ImageStorage
+from fastapi import Form
 
 app = FastAPI()
 
 # Initialiser le logger
 logger = get_logger(__name__, debug=config.DEBUG)
+
+# Initialiser le stockage d'images
+image_storage = ImageStorage(config.USER_STORAGE_DIR)
 
 # Configuration CORS depuis config.py
 app.add_middleware(
@@ -150,9 +155,16 @@ async def process_image(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=error_detail)
 
 @app.post("/api/detect-letters")
-async def detect_letters_endpoint(file: UploadFile = File(...)):
+async def detect_letters_endpoint(
+    file: UploadFile = File(...),
+    email: str = Form(...)
+):
     """Endpoint pour détecter les lettres dans une image, les entourer de carrés verts et détecter la paracha"""
     try:
+        # Valider l'email (format basique)
+        if not email or '@' not in email:
+            raise HTTPException(status_code=400, detail="Email invalide")
+        
         # Valider le format du fichier
         validate_uploaded_file(file)
         
@@ -176,12 +188,28 @@ async def detect_letters_endpoint(file: UploadFile = File(...)):
         
         # Détecter les lettres et la paracha
         # Utiliser les chemins depuis config.py
-        img_base64, paracha_name, detected_text, differences = detect_letters(
+        img_base64, paracha_name, detected_text, differences, summary = detect_letters(
             img,
             weight_file=config.MODEL_PATH,
             overflow_dir=config.OVERFLOW_DIR,
             debug=config.DEBUG
         )
+        
+        # Décoder l'image de résultat pour la sauvegarder
+        img_bytes = base64.b64decode(img_base64)
+        result_nparr = np.frombuffer(img_bytes, np.uint8)
+        result_img = cv2.imdecode(result_nparr, cv2.IMREAD_COLOR)
+        
+        # Sauvegarder les images (originale et résultat) avec le nom de la paracha
+        if result_img is not None:
+            image_storage.save_image_pair(
+                email=email,
+                original_image=img,
+                result_image=result_img,
+                original_filename=file.filename,
+                paracha_name=paracha_name
+            )
+            logger.info(f"Images sauvegardées pour l'utilisateur: {email}, paracha: {paracha_name}")
         
         # Convertir bytes en string
         img_base64_str = img_base64.decode('utf-8')
@@ -191,7 +219,10 @@ async def detect_letters_endpoint(file: UploadFile = File(...)):
             "image": img_base64_str,
             "paracha": paracha_name,
             "text": detected_text,
-            "differences": differences
+            "differences": differences,
+            "paracha_status": summary.get("paracha_status"),
+            "has_errors": summary.get("has_errors"),
+            "errors": summary.get("errors"),
         })
         
     except HTTPException:

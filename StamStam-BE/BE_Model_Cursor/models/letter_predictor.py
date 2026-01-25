@@ -34,8 +34,34 @@ def extract_letter_images(image, rects):
     letter_images = []
     
     for x, y, w, h in rects:
+        # Valider les coordonnées du rectangle
+        if w <= 0 or h <= 0:
+            # Créer une image noire par défaut si le rectangle est invalide
+            img_2828 = np.zeros((28, 28), dtype=np.uint8)
+            letter_images.append(img_2828)
+            continue
+        
+        # S'assurer que les coordonnées sont dans les limites de l'image
+        x = max(0, int(x))
+        y = max(0, int(y))
+        w = min(image.shape[1] - x, int(w))
+        h = min(image.shape[0] - y, int(h))
+        
+        if w <= 0 or h <= 0:
+            # Créer une image noire par défaut si le rectangle est invalide
+            img_2828 = np.zeros((28, 28), dtype=np.uint8)
+            letter_images.append(img_2828)
+            continue
+        
         # Extraire la région du rectangle
         img_rect = image[y:y+h, x:x+w]
+        
+        # Vérifier que la région extraite n'est pas vide
+        if img_rect.size == 0 or img_rect.shape[0] == 0 or img_rect.shape[1] == 0:
+            # Créer une image noire par défaut
+            img_2828 = np.zeros((28, 28), dtype=np.uint8)
+            letter_images.append(img_2828)
+            continue
         
         # Convertir en niveaux de gris
         img_gray = cv2.cvtColor(img_rect, cv2.COLOR_BGR2GRAY)

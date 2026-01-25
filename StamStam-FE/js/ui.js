@@ -87,7 +87,7 @@ export class UIManager {
      * @param {string} detectedText - Texte hébreu détecté
      * @param {Array} differences - Liste des différences trouvées
      */
-    showResults(imageBase64, parachaName, detectedText = '', differences = []) {
+    showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null) {
         this.elements.displayImage.src = `data:image/jpeg;base64,${imageBase64}`;
         this.elements.displayImage.style.display = 'block';
         this.elements.imageZoomContainer.style.display = 'block';
@@ -96,6 +96,38 @@ export class UIManager {
         
         // Traduire le nom de la paracha en hébreu
         this.elements.parachaName.textContent = translateParachaName(parachaName);
+        
+        // Statut global (complete / incomplete) et erreurs
+        const parachaStatusEl = document.getElementById('parachaStatus');
+        const errorsStatusEl = document.getElementById('errorsStatus');
+        if (parachaStatusEl) {
+            if (parachaStatus === 'complete') {
+                parachaStatusEl.textContent = 'פרשה מלאה';
+                parachaStatusEl.className = 'info-value status-pill status-success';
+            } else if (parachaStatus === 'incomplete') {
+                parachaStatusEl.textContent = 'פרשה חלקית';
+                parachaStatusEl.className = 'info-value status-pill status-warning';
+            } else {
+                parachaStatusEl.textContent = '';
+                parachaStatusEl.className = 'info-value status-pill';
+            }
+        }
+        if (errorsStatusEl) {
+            if (hasErrors === false) {
+                errorsStatusEl.textContent = 'ללא שגיאות';
+                errorsStatusEl.className = 'info-value status-pill status-success';
+            } else if (errors) {
+                const missing = errors.missing || 0;
+                const extra = errors.extra || 0;
+                const wrong = errors.wrong || 0;
+                const total = missing + extra + wrong;
+                errorsStatusEl.textContent = `שגיאות: ${total} (חסר ${missing}, מיותר ${extra}, שגוי ${wrong})`;
+                errorsStatusEl.className = 'info-value status-pill status-error';
+            } else {
+                errorsStatusEl.textContent = '';
+                errorsStatusEl.className = 'info-value status-pill';
+            }
+        }
         
         // Afficher le message de succès en haut si pas de différences
         const successMessageEl = document.getElementById('successMessage');
