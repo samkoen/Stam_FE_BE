@@ -264,11 +264,22 @@ export class UIManager {
             wrongItems.forEach((item) => {
                 const detected = item.text || '';
                 const expected = item.expected || '';
+                const contextBefore = item.context_before || '';
+                const contextAfter = item.context_after || '';
                 const rect = item.rect || null;
                 const rectStr = rect ? JSON.stringify(rect) : '';
                 
                 explanationText += `<div class="diff-wrong-item" data-rect="${rectStr}" style="cursor: pointer;">`;
                 explanationText += `<div class="diff-wrong-char">שגוי: <strong>${detected}</strong> (צריך להיות: <strong>${expected}</strong>)</div>`;
+                
+                if (contextBefore || contextAfter) {
+                    explanationText += `<div class="diff-context">`;
+                    explanationText += `<span class="context-before">${contextBefore}</span>`;
+                    explanationText += `<span class="context-wrong" style="color: #ffa500; font-weight: bold;">[${detected}]</span>`;
+                    explanationText += `<span class="context-after">${contextAfter}</span>`;
+                    explanationText += `</div>`;
+                }
+                
                 explanationText += `</div>`;
             });
         }
@@ -312,11 +323,22 @@ export class UIManager {
             const extraItems = differences.filter(d => d.type === 'extra');
             extraItems.forEach((item) => {
                 const extraChar = item.text || '';
+                const contextBefore = item.context_before || '';
+                const contextAfter = item.context_after || '';
                 const rect = item.rect || null;
                 const rectStr = rect ? JSON.stringify(rect) : '';
                 
                 explanationText += `<div class="diff-extra-item" data-rect="${rectStr}" style="cursor: pointer;">`;
                 explanationText += `<div class="diff-extra-char">מיותר: <strong>${extraChar}</strong></div>`;
+                
+                if (contextBefore || contextAfter) {
+                    explanationText += `<div class="diff-context">`;
+                    explanationText += `<span class="context-before">${contextBefore}</span>`;
+                    explanationText += `<span class="context-extra" style="color: #0000ff; font-weight: bold;">[${extraChar}]</span>`;
+                    explanationText += `<span class="context-after">${contextAfter}</span>`;
+                    explanationText += `</div>`;
+                }
+                
                 explanationText += `</div>`;
             });
         }
@@ -455,57 +477,41 @@ export class UIManager {
         
         // Attendre que le zoom soit appliqué
         setTimeout(() => {
-            // Obtenir les dimensions réelles après le zoom
+            // Recalculer le scale réel (au cas où l'arrondi ou les scrollbars jouent)
             const imgRect = image.getBoundingClientRect();
-            const viewerRect = imageViewer.getBoundingClientRect();
-            const containerRect = imageZoomContainer.getBoundingClientRect();
-            const actualScale = baseScale * this.zoomLevel;
+            // Si l'image n'est pas affichée ou largeur nulle, éviter division par zéro
+            if (imgRect.width === 0 || image.naturalWidth === 0) return;
             
-            // Dimensions de l'image zoomée
-            const imageWidth = imgRect.width;
-            const imageHeight = imgRect.height;
-            const containerWidth = containerRect.width;
-            const containerHeight = containerRect.height;
+            const actualScale = imgRect.width / image.naturalWidth;
             
-            // L'image est centrée horizontalement dans le conteneur
-            // Calculer l'offset de centrage
-            const imageOffsetXInContainer = (containerWidth - imageWidth) / 2;
-            const imageOffsetYInContainer = 0; // L'image commence en haut
+            // Position de l'image par rapport au container
+            // Cela prend en compte le margin: auto ou l'alignement flex
+            const imgLeft = image.offsetLeft;
+            const imgTop = image.offsetTop;
             
-            // Calculer la position du marqueur dans l'image zoomée
-            // L'image n'est pas inversée visuellement, on utilise centerX directement
+            // Position du container par rapport au viewer
+            const containerLeft = imageZoomContainer.offsetLeft;
+            const containerTop = imageZoomContainer.offsetTop;
+            
+            // Position du marqueur relative à l'image
             const markerXInImage = centerX * actualScale;
             const markerYInImage = centerY * actualScale;
             
-            // Position du marqueur dans le conteneur (en tenant compte du centrage de l'image)
-            const markerXInContainer = imageOffsetXInContainer + markerXInImage;
-            const markerYInContainer = imageOffsetYInContainer + markerYInImage;
+            // Position absolue du marqueur dans l'espace de scroll du viewer
+            const absoluteMarkerX = containerLeft + imgLeft + markerXInImage;
+            const absoluteMarkerY = containerTop + imgTop + markerYInImage;
             
-            // Position du conteneur dans le viewer (en tenant compte du scroll actuel)
-            const containerLeftInViewer = containerRect.left - viewerRect.left + imageViewer.scrollLeft;
-            const containerTopInViewer = containerRect.top - viewerRect.top + imageViewer.scrollTop;
-            
-            // Position absolue du marqueur dans le viewer
-            const markerXInViewer = containerLeftInViewer + markerXInContainer;
-            const markerYInViewer = containerTopInViewer + markerYInContainer;
-            
-            // Centrer le marqueur dans le viewer
+            // Dimensions de la zone visible du viewer
             const viewerWidth = imageViewer.clientWidth;
             const viewerHeight = imageViewer.clientHeight;
             
-            const targetScrollLeft = markerXInViewer - viewerWidth / 2;
-            const targetScrollTop = markerYInViewer - viewerHeight / 2;
+            // Calcul du scroll pour centrer
+            const targetScrollLeft = absoluteMarkerX - viewerWidth / 2;
+            const targetScrollTop = absoluteMarkerY - viewerHeight / 2;
             
-            // Limiter aux limites de scroll
-            const maxScrollLeft = Math.max(0, imageViewer.scrollWidth - viewerWidth);
-            const maxScrollTop = Math.max(0, imageViewer.scrollHeight - viewerHeight);
-            
-            const finalScrollLeft = Math.max(0, Math.min(maxScrollLeft, targetScrollLeft));
-            const finalScrollTop = Math.max(0, Math.min(maxScrollTop, targetScrollTop));
-            
-            // Appliquer le scroll
-            imageViewer.scrollLeft = finalScrollLeft;
-            imageViewer.scrollTop = finalScrollTop;
+            // Appliquer le scroll (le navigateur gère le clamping min/max)
+            imageViewer.scrollLeft = targetScrollLeft;
+            imageViewer.scrollTop = targetScrollTop;
             
             // Ajouter un effet visuel
             this.highlightPosition(x, y, w, h);
@@ -545,8 +551,13 @@ export class UIManager {
         const scaleX = imgRect.width / image.naturalWidth;
         const scaleY = imgRect.height / image.naturalHeight;
         
-        highlight.style.left = `${(image.naturalWidth - x - w) * scaleX}px`;
-        highlight.style.top = `${y * scaleY}px`;
+        // Position de l'image dans le conteneur (gère le margin: auto ou flex align)
+        const imgLeft = image.offsetLeft;
+        const imgTop = image.offsetTop;
+        
+        // Positionner par rapport au conteneur (qui est en position: relative)
+        highlight.style.left = `${imgLeft + x * scaleX}px`;
+        highlight.style.top = `${imgTop + y * scaleY}px`;
         highlight.style.width = `${w * scaleX}px`;
         highlight.style.height = `${h * scaleY}px`;
         
@@ -625,6 +636,17 @@ export class UIManager {
                 img.style.maxWidth = 'none';
                 img.style.maxHeight = 'none';
                 img.style.display = 'block';
+
+                // Gestion du centrage/alignement pour permettre le scroll
+                // Si l'image est plus large que le conteneur, on aligne à gauche
+                // sinon on centre
+                if (newWidth > containerWidth) {
+                    container.style.justifyContent = 'flex-start';
+                    img.style.margin = '0'; 
+                } else {
+                    container.style.justifyContent = 'center';
+                    img.style.margin = '0 auto';
+                }
             } else {
                 // Si les dimensions naturelles ne sont pas encore disponibles, attendre le chargement
                 // L'événement 'load' se chargera d'appliquer le zoom

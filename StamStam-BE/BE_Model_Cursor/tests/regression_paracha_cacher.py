@@ -116,7 +116,7 @@ TEST_CONFIG = [
         'expected': {
             'missing': 3,
             'substitution': 1,
-            'extra': 1
+            'extra': 0
         }
     },
     {
@@ -125,6 +125,13 @@ TEST_CONFIG = [
             'missing': 0,
             'substitution': 0,
             'extra': 6
+        }
+    },{
+        'filename': 'mezuza_mot_en_plus.jpg',
+        'expected': {
+            'missing': 0,
+            'substitution': 1, #a ameliore
+            'extra': 7
         }
     },
     # Ajouter d'autres fichiers ici avec leurs résultats attendus

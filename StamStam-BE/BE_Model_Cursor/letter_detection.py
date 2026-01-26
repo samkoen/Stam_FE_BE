@@ -319,8 +319,10 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
             dmp.diff_cleanupSemantic(diff)
             
             # Parcourir le diff et mettre à jour les couleurs des rectangles
+            # Utiliser une boucle while pour gérer les sauts d'index (substitutions)
             rect_idx = 0
-            for i in range(len(diff)):
+            i = 0
+            while i < len(diff):
                 op, text = diff[i]
                 
                 if op == 0:  # Égalité - texte correct (vert)
@@ -329,6 +331,7 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                             if isinstance(valid_rects_final[rect_idx], RectangleWithLine):
                                 valid_rects_final[rect_idx].color = (0, 255, 0)  # Vert
                             rect_idx += 1
+                    i += 1
                 
                 elif op == -1:  # Supprimé dans detected_text = lettre manquante ou substitution
                     # Vérifier si c'est une substitution (suivi d'une addition)
@@ -340,8 +343,10 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                                 if isinstance(valid_rects_final[rect_idx], RectangleWithLine):
                                     valid_rects_final[rect_idx].color = (0, 165, 255)  # Orange
                                 rect_idx += 1
-                        i += 1  # On passe l'opération -1, et +1 sera géré dans le prochain tour de boucle
-                    # Pour les vraies lettres manquantes, pas de rectangle à colorer (on dessine un X)
+                        i += 2  # On passe l'opération -1 ET +1
+                    else:
+                        # Pour les vraies lettres manquantes, pas de rectangle à colorer (on dessine un X)
+                        i += 1
                 
                 elif op == 1:  # Ajouté dans detected_text = lettre en trop (bleu)
                     for j in range(len(text)):
@@ -349,6 +354,7 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                             if isinstance(valid_rects_final[rect_idx], RectangleWithLine):
                                 valid_rects_final[rect_idx].color = (255, 0, 0)  # Bleu
                             rect_idx += 1
+                    i += 1
             
             if corrections:
                 if debug:
@@ -397,8 +403,9 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
             # Les couleurs ont déjà été mises à jour dans les rectangles précédemment
             rect_idx = 0
             i = 0
+            current_det_pos = 0  # Position actuelle dans detected_text
             
-            for i in range(len(diff)):
+            while i < len(diff):
                 op, text = diff[i]
                 
                 if op == 0:  # Égalité - texte correct (vert)
@@ -413,14 +420,26 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                                 color = (0, 255, 0)  # Vert par défaut
                             cv2.rectangle(result_image, (x, y), (x + w, y + h), color, 2)
                             rect_idx += 1
+                    
+                    current_det_pos += len(text)
                     i += 1
                 
-                elif op == -1:  # Supprimé dans detected_text = lettre manquante dans le texte détecté
+                elif op == -1:  # Supprimé dans detected_text = lettre manquante dans le texte détecté (MISSING)
                     # Vérifier si c'est une substitution (suivi d'une addition)
                     if i + 1 < len(diff) and diff[i + 1][0] == 1:
                         # C'est une substitution : une lettre a été remplacée par une autre
                         added_text = diff[i + 1][1]
                         expected_text = text
+                        
+                        # Calculer le contexte (autour de added_text dans detected_text)
+                        context_before = ""
+                        context_after = ""
+                        
+                        start_idx = max(0, current_det_pos - 10)
+                        context_before = detected_text[start_idx:current_det_pos]
+                        
+                        end_idx = min(len(detected_text), current_det_pos + len(added_text) + 10)
+                        context_after = detected_text[current_det_pos + len(added_text):end_idx]
                         
                         # Marquer comme "wrong" (lettre fausse)
                         for j in range(len(added_text)):
@@ -437,10 +456,14 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                                     'text': added_text[j] if j < len(added_text) else '',
                                     'expected': expected_text[j] if j < len(expected_text) else expected_text,
                                     'position': rect_idx,
-                                    'rect': (x, y, w, h)
+                                    'rect': (x, y, w, h),
+                                    'context_before': context_before,
+                                    'context_after': context_after
                                 })
                                 rect_idx += 1
-                        i += 1  # On passe l'opération -1, et +1 sera géré dans le prochain tour de boucle
+                        
+                        current_det_pos += len(added_text)
+                        i += 2  # On passe l'opération -1 ET +1
                     else:
                         # Vraie lettre manquante (pas de rectangle correspondant)
                         expected_char = text[0] if text else ''  # La lettre attendue
@@ -585,8 +608,9 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                         })
                         
                         # Ne pas avancer rect_idx car il n'y a pas de rectangle dans detected_text
+                        i += 1
                 
-                elif op == 1:  # Ajouté dans detected_text = lettre en trop dans le texte détecté
+                elif op == 1:  # Ajouté dans detected_text = lettre en trop dans le texte détecté (EXTRA)
                     # Dessiner en utilisant la couleur du rectangle
                     for j in range(len(text)):
                         if rect_idx < len(valid_rects_final):
@@ -597,13 +621,28 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                             else:
                                 color = (255, 0, 0)  # Bleu par défaut
                             cv2.rectangle(result_image, (x, y), (x + w, y + h), color, 2)
+                            
+                            # Calculer le contexte pour extra (DANS DETECTED)
+                            context_before = ""
+                            context_after = ""
+                            
+                            start_idx = max(0, current_det_pos - 10)
+                            context_before = detected_text[start_idx:current_det_pos]
+                            
+                            end_idx = min(len(detected_text), current_det_pos + len(text) + 10)
+                            context_after = detected_text[current_det_pos + len(text):end_idx]
+                            
                             differences_info.append({
                                 'type': 'extra',
                                 'text': text[j] if j < len(text) else '',
                                 'position': rect_idx,
-                                'rect': (x, y, w, h)
+                                'rect': (x, y, w, h),
+                                'context_before': context_before,
+                                'context_after': context_after
                             })
                             rect_idx += 1
+                    
+                    current_det_pos += len(text)
                     i += 1
     else:
         # Si pas de paracha détectée, dessiner tout en vert (ou utiliser la couleur du rectangle)
@@ -671,6 +710,7 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
         },
     )
 
+
 def image_to_b64_string(image):
     """
     Convertit une image OpenCV en string base64.
@@ -684,4 +724,3 @@ def image_to_b64_string(image):
     _, buffer = cv2.imencode('.jpg', image)
     image_base64 = base64.b64encode(buffer)
     return image_base64.decode('utf-8')
-

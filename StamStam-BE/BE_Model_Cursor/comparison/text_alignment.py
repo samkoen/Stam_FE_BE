@@ -232,9 +232,10 @@ def _handle_substitution(corrected_rects, corrected_codes, rect_idx, diff, diff_
             substitution_corrected = True
             return True, rect_idx, diff_idx, False  # diff_changed, rect_idx, diff_idx, substitution_processed
     
-    # CAS 2: 1 rectangle détecté au lieu d'1 lettre attendue
-    elif len(added_text) == 1 and len(expected_text) == 1 and rect_idx < len(corrected_rects):
-        expected_char = expected_text[0]
+    # CAS 2 & 3: 1 rectangle détecté au lieu de 1 (ou N) lettres attendues
+    # (CAS 2: 1->1, CAS 3: 1->N)
+    elif len(added_text) == 1 and rect_idx < len(corrected_rects):
+        expected_char = expected_text # Chaîne complète (peut avoir plusieurs caractères)
         detected_char = added_text[0]
         if _handle_substitution_case2(corrected_rects, corrected_codes, rect_idx, expected_char, detected_char, text,
                                       correction_manager, reference_text, detected_text_normalized, corrections_applied,

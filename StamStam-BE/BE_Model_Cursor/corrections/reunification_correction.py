@@ -113,8 +113,18 @@ class ReunificationCorrection(BaseCorrection):
             
             if len(valid_redetected) >= 2:
                 detected_chars = [letter_code_to_hebrew(code) for _, code in valid_redetected]
+                detected_str = "".join(detected_chars)
                 
-                if expected_char in detected_chars:
+                # Vérification
+                match = False
+                if len(expected_char) == 1:
+                    # Cas 1 lettre: on vérifie sa présence dans les résultats
+                    match = expected_char in detected_chars
+                else:
+                    # Cas N lettres: on vérifie si la séquence détectée correspond
+                    match = expected_char == detected_str
+                
+                if match:
                     # Succès ! Extraire les rectangles et codes
                     new_rects = [rect for rect, _ in valid_redetected]
                     new_codes = [code for _, code in valid_redetected]

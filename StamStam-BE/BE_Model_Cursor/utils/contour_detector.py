@@ -222,11 +222,14 @@ def remove_small_included_rects(rects):
         return rects
     
     result = []
+    removed_count = 0
     for i, rect_a in enumerate(rects):
         is_included_flag = False
         for j, rect_b in enumerate(rects):
             if i != j and is_included(rect_b, rect_a):
                 is_included_flag = True
+                print(f"  [Suppression Inclus] Rectangle {i} {rect_a} est inclus dans Rectangle {j} {rect_b} -> SUPPRIMÉ")
+                removed_count += 1
                 break
         if not is_included_flag:
             result.append(rect_a)
@@ -382,7 +385,19 @@ def _show_rectangles_interactive(image, rects, title, step_name, color=(0, 255, 
             
         elif key == ord(' '):  # Espace pour ajouter le rectangle suivant
             # Ajouter le rectangle suivant
-            x, y, w, h = rects[current_rect_index]
+            current_rect = rects[current_rect_index]
+            x, y, w, h = current_rect
+            
+            # Log les infos du rectangle
+            from BE_Model_Cursor.utils.rectangle_with_line import RectangleWithLine
+            line_info = ""
+            if isinstance(current_rect, RectangleWithLine):
+                line_info = f" | Ligne: {current_rect.line_number}"
+                if current_rect.detected_letter:
+                    line_info += f" | Lettre: {current_rect.detected_letter}"
+            
+            print(f"[IMSHOW] Rectangle {current_rect_index}: x={x}, y={y}, w={w}, h={h}{line_info}")
+            
             cv2.rectangle(final_image, (x, y), (x + w, y + h), color, 2)
             
             # Texte à afficher
@@ -611,6 +626,12 @@ def detect_contours(image, min_contour_area=50, show_images=False):
             aspect_ratio = w / h if h > 0 else 0
             if 0.1 < aspect_ratio < 5.0:
                 valid_rects.append((x, y, w, h))
+            else:
+                if show_images:
+                    print(f"  [Filtrage] Rectangle rejeté (ratio invalide): {w}x{h}, ratio={aspect_ratio:.2f}")
+        else:
+            if show_images:
+                print(f"  [Filtrage] Rectangle rejeté (dimensions hors limites): {w}x{h}")
     
     print(f"  ✓ {len(valid_rects)} rectangles valides après filtrage")
     if show_images:
@@ -654,6 +675,69 @@ def detect_contours(image, min_contour_area=50, show_images=False):
         valid_rects = sort_rectangles_by_lines(valid_rects, debug=False, image=None)
         print(f"  ✓ Ordonnancement terminé: {len(valid_rects)} rectangles")
     
+    # Étape 7bis : Suppression des lignes parasites (1 seul élément très petit)
+    print(f"[detect_contours] Étape 7bis: Nettoyage des lignes parasites...")
+    if len(valid_rects) > 0:
+        # Grouper par ligne
+        lines_dict = {}
+        for r in valid_rects:
+            # Gérer RectangleWithLine ou tuple
+            if hasattr(r, 'line_number'):
+                line_id = r.line_number
+            else:
+                line_id = 0 # Fallback
+            
+            if line_id not in lines_dict:
+                lines_dict[line_id] = []
+            lines_dict[line_id].append(r)
+            
+        # Calculer la taille moyenne globale et la surface moyenne
+        widths = [r.w if hasattr(r, 'w') else r[2] for r in valid_rects]
+        heights = [r.h if hasattr(r, 'h') else r[3] for r in valid_rects]
+        areas = [(r.w * r.h) if hasattr(r, 'w') else (r[2] * r[3]) for r in valid_rects]
+        
+        avg_w = sum(widths) / len(widths) if widths else 0
+        avg_h = sum(heights) / len(heights) if heights else 0
+        avg_area = sum(areas) / len(areas) if areas else 0
+        
+        print(f"  Moyenne globale: {avg_w:.1f}x{avg_h:.1f} (Surface: {avg_area:.1f})")
+        
+        rects_to_keep = []
+        removed_count = 0
+        
+        # Parcourir les lignes triées par ID pour garder l'ordre
+        for line_id in sorted(lines_dict.keys()):
+            line_rects = lines_dict[line_id]
+            
+            # Vérifier si TOUS les rectangles de la ligne sont petits/parasites
+            all_small = True
+            for r in line_rects:
+                w = r.w if hasattr(r, 'w') else r[2]
+                h = r.h if hasattr(r, 'h') else r[3]
+                area = w * h
+                
+                # Critère: Surface < 15% de la moyenne
+                # (Les lettres normales font ~7000px, les parasites ~400px soit < 6%)
+                # On prend 15% pour être sûr (ex: ~1000px)
+                # On ajoute aussi une condition sur la hauteur minimale absolue (ex: < 40px) si la surface est limite
+                
+                is_small_area = (area < avg_area * 0.15)
+                is_small_dim = (w < avg_w * 0.6 and h < avg_h * 0.6)
+                
+                if not (is_small_area or is_small_dim):
+                    all_small = False
+                    break
+            
+            if all_small:
+                print(f"  [Nettoyage Lignes] Ligne {line_id} supprimée : contient uniquement {len(line_rects)} petit(s) rectangle(s) parasite(s)")
+                removed_count += 1
+                continue # On ne l'ajoute pas
+            
+            rects_to_keep.extend(line_rects)
+            
+        valid_rects = rects_to_keep
+        print(f"  ✓ {removed_count} ligne(s) parasite(s) supprimée(s)")
+
     # Étape 8 : Détection et séparation des rectangles couvrant 2 lignes
     print(f"[detect_contours] Étape 8: Détection et séparation des rectangles multi-lignes...")
     valid_rects = split_multi_line_rectangles(image, valid_rects, show_images=show_images)

@@ -124,6 +124,31 @@ class CorrectionManager:
                 print(f"  → ✗ Erreur dans MissingLetterCorrection: {e}")
             return None
         
+        # CAS 3: 1 rectangle détecté au lieu de N lettres attendues (Substitution 1->N)
+        # Exemple: 1 rectangle contient "של" collés, attendu "של" (2 lettres)
+        if len(expected_char) > 1 and detected_char and detected_char != '':
+            self.logger.debug(f"[CorrectionManager] CAS 3: 1 rectangle '{detected_char}' au lieu de '{expected_char}' → Tentative de réunification multiple")
+            try:
+                result = self.reunification.try_correct(
+                    rect_idx=rect_idx,
+                    valid_rects_final=valid_rects_final,
+                    valid_codes=valid_codes,
+                    expected_char=expected_char,
+                    detected_char=detected_char,
+                    reference_text=reference_text,
+                    detected_text=detected_text
+                )
+                if result.success:
+                    # Vérification finale
+                    from BE_Model_Cursor.models.letter_predictor import letter_code_to_hebrew
+                    detected_str = "".join([letter_code_to_hebrew(c) for c in result.new_codes if c != 27])
+                    if detected_str == expected_char:
+                        return result
+                    else:
+                        self.logger.debug(f"[CorrectionManager] Reunification multiple donne '{detected_str}' mais attendu '{expected_char}' → rejetée")
+            except Exception as e:
+                self.logger.error(f"Erreur dans ReunificationCorrection (Multiple): {e}")
+
         # CAS 2: 1 rectangle détecté au lieu d'1 lettre attendue → Solution simple puis Réunification
         if len(expected_char) == 1 and (detected_chars is None or len(detected_chars) == 1):
             # Sous-cas 2.1: Si détecté='ה' et attendu='ק' → Essayer d'abord la solution simple (extension de hauteur)

@@ -8,11 +8,20 @@ import sys
 import cv2
 import base64
 import numpy as np
+import logging
 
 # Ajouter le chemin vers le backend pour les imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, backend_dir)
+
+# Maintenant on peut importer depuis BE_Model_Cursor
+from BE_Model_Cursor.utils.logger import StamStamLogger
+
+# Configurer le logger global
+logger = StamStamLogger.setup_logger("visualize_detect_letters", level="DEBUG", debug=True)
+# S'assurer que les loggers du backend sont aussi en DEBUG
+logging.getLogger("BE_Model_Cursor").setLevel(logging.DEBUG)
 
 # Forcer le rechargement des modules pour éviter les problèmes de cache
 import importlib
@@ -34,17 +43,16 @@ def display_comparison_results(differences, detected_text, paracha_name):
         detected_text: Texte détecté
         paracha_name: Nom de la paracha détectée
     """
-    print("\n" + "="*80)
-    print("RÉSULTATS DE LA COMPARAISON")
-    print("="*80)
-    print(f"Paracha détectée: {paracha_name}")
-    print(f"Texte détecté (longueur: {len(detected_text)}):")
-    print(f"  {detected_text[:200]}..." if len(detected_text) > 200 else f"  {detected_text}")
-    print()
+    logger.info("="*80)
+    logger.info("RÉSULTATS DE LA COMPARAISON")
+    logger.info("="*80)
+    logger.info(f"Paracha détectée: {paracha_name}")
+    logger.info(f"Texte détecté (longueur: {len(detected_text)}):")
+    logger.info(f"  {detected_text[:200]}..." if len(detected_text) > 200 else f"  {detected_text}")
     
     if not differences:
-        print("✓ SUCCÈS: 100% de correspondance!")
-        print("Toutes les lettres sont correctes.")
+        logger.info("✓ SUCCÈS: 100% de correspondance!")
+        logger.info("Toutes les lettres sont correctes.")
         return
     
     # Compter les différents types de différences
@@ -52,41 +60,37 @@ def display_comparison_results(differences, detected_text, paracha_name):
     extra_count = sum(1 for d in differences if d['type'] == 'extra')
     wrong_count = sum(1 for d in differences if d['type'] == 'wrong')
     
-    print(f"Résumé des différences:")
-    print(f"  - Lettres manquantes (חסר): {missing_count}")
-    print(f"  - Lettres en plus (מיותר): {extra_count}")
-    print(f"  - Lettres fausses (שגוי): {wrong_count}")
-    print()
+    logger.info(f"Résumé des différences:")
+    logger.info(f"  - Lettres manquantes (חסר): {missing_count}")
+    logger.info(f"  - Lettres en plus (מיותר): {extra_count}")
+    logger.info(f"  - Lettres fausses (שגוי): {wrong_count}")
     
     # Afficher les détails par type
     if missing_count > 0:
-        print("Lettres manquantes (חסר):")
+        logger.info("Lettres manquantes (חסר):")
         for i, diff in enumerate([d for d in differences if d['type'] == 'missing'], 1):
             context_before = diff.get('context_before', '')
             context_after = diff.get('context_after', '')
             text = diff.get('text', '')
             position = diff.get('position', -1)
-            print(f"  {i}. Position {position}: '{text}'")
+            logger.info(f"  {i}. Position {position}: '{text}'")
             if context_before or context_after:
-                print(f"     Contexte: ...{context_before}[{text}]{context_after}...")
-        print()
+                logger.info(f"     Contexte: ...{context_before}[{text}]{context_after}...")
     
     if extra_count > 0:
-        print("Lettres en plus (מיותר):")
+        logger.info("Lettres en plus (מיותר):")
         for i, diff in enumerate([d for d in differences if d['type'] == 'extra'], 1):
             text = diff.get('text', '')
             position = diff.get('position', -1)
-            print(f"  {i}. Position {position}: '{text}'")
-        print()
+            logger.info(f"  {i}. Position {position}: '{text}'")
     
     if wrong_count > 0:
-        print("Lettres fausses (שגוי):")
+        logger.info("Lettres fausses (שגוי):")
         for i, diff in enumerate([d for d in differences if d['type'] == 'wrong'], 1):
             text = diff.get('text', '')
             expected = diff.get('expected', '')
             position = diff.get('position', -1)
-            print(f"  {i}. Position {position}: détecté '{text}', attendu '{expected}'")
-        print()
+            logger.info(f"  {i}. Position {position}: détecté '{text}', attendu '{expected}'")
 
 
 def process_single_image(image_path, show_contours=True, debug=True, save_result=False):
@@ -107,29 +111,26 @@ def process_single_image(image_path, show_contours=True, debug=True, save_result
     # Charger l'image
     test_image = cv2.imread(image_path)
     if test_image is None:
-        print(f"Erreur: Impossible de charger l'image : {image_path}")
+        logger.error(f"Erreur: Impossible de charger l'image : {image_path}")
         return None
     
     filename = os.path.basename(image_path)
     
     if show_contours:
-        print(f"Chargement de l'image: {filename}")
-        print("Démarrage de la visualisation des étapes de détection des contours...")
-        print("(Les imshow seront affichés à chaque étape)")
-        print()
+        logger.info(f"Chargement de l'image: {filename}")
+        logger.info("Démarrage de la visualisation des étapes de détection des contours...")
+        logger.info("(Les imshow seront affichés à chaque étape)")
         
         # Utiliser le code du serveur avec show_images=True
         # Cela va afficher toutes les étapes et permettre l'interaction à la fin
         ordered_rects = detect_and_order_contours(test_image, min_contour_area=50, show_images=True)
         
-        print(f"\nVisualisation des contours terminée.")
-        print(f"Nombre total de rectangles détectés: {len(ordered_rects)}")
-        print()
+        logger.info(f"\nVisualisation des contours terminée.")
+        logger.info(f"Nombre total de rectangles détectés: {len(ordered_rects)}")
     
     if debug:
-        print("Démarrage de la détection des lettres et comparaison avec la paracha...")
-        print("(Tous les logs seront affichés)")
-        print()
+        logger.info("Démarrage de la détection des lettres et comparaison avec la paracha...")
+        logger.info("(Tous les logs seront affichés)")
     
     # Utiliser la même fonction que le serveur
     # detect_letters retourne: (image_base64, paracha_name, detected_text, differences_info, summary)
@@ -139,8 +140,7 @@ def process_single_image(image_path, show_contours=True, debug=True, save_result
     )
     
     if debug:
-        print(f"\nDétection des lettres terminée.")
-        print()
+        logger.info(f"\nDétection des lettres terminée.")
     
     # Décoder l'image résultante si nécessaire
     result_image = None
@@ -167,7 +167,7 @@ def main():
     test_image_path = os.path.join(test_images_dir, TEST_IMAGE_FILE)
     
     if not os.path.exists(test_image_path):
-        print(f"Erreur: Image de test non trouvée : {test_image_path}")
+        logger.error(f"Erreur: Image de test non trouvée : {test_image_path}")
         return
     
     # Utiliser la fonction partagée
@@ -190,10 +190,9 @@ def main():
     if result_image is not None:
         output_path = os.path.join(test_images_dir, f"result_{TEST_IMAGE_FILE}")
         cv2.imwrite(output_path, result_image)
-        print(f"Image avec rectangles colorés sauvegardée: {output_path}")
-        print("(Vert = correct, Bleu = lettre en plus, Orange = lettre fausse, Rouge = lettre manquante)")
+        logger.info(f"Image avec rectangles colorés sauvegardée: {output_path}")
+        logger.info("(Vert = correct, Bleu = lettre en plus, Orange = lettre fausse, Rouge = lettre manquante)")
 
 
 if __name__ == '__main__':
     main()
-
