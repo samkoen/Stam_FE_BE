@@ -157,8 +157,11 @@ def main():
     Fonction principale qui visualise les différentes étapes de la détection des lettres
     et compare avec la paracha. Utilise le code du serveur avec show_images=True pour afficher les étapes.
     """
+    if sys.stdout.encoding.lower() != 'utf-8':
+        sys.stdout.reconfigure(encoding='utf-8')
+    
     # Fichier de test hardcodé
-    TEST_IMAGE_FILE = 'mezuza1.jpg'
+    TEST_IMAGE_FILE = '003.jpg'
     #TEST_IMAGE_FILE = 'vehaya_avec_un_mot_en_plus.jpg'
 
     

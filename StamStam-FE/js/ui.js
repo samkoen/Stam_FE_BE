@@ -10,7 +10,6 @@ export class UIManager {
             uploadArea: document.getElementById('uploadArea'),
             fileInput: document.getElementById('fileInput'),
             fileInfo: document.getElementById('fileInfo'),
-            processBtn: document.getElementById('processBtn'),
             detectLettersBtn: document.getElementById('detectLettersBtn'),
             cropControls: document.getElementById('cropControls'),
             applyCropBtn: document.getElementById('applyCropBtn'),
@@ -37,10 +36,26 @@ export class UIManager {
             zoomInBtn: document.getElementById('zoomInBtn'),
             zoomOutBtn: document.getElementById('zoomOutBtn'),
             resetZoomBtn: document.getElementById('resetZoomBtn'),
-            differencesInfo: document.getElementById('differencesInfo')
+            differencesInfo: document.getElementById('differencesInfo'),
+            showSpaceErrors: document.getElementById('showSpaceErrors'),
+            filterSpacesContainer: document.getElementById('filterSpacesContainer')
         };
         this.isExpanded = false;
         this.zoomLevel = 1.0;
+        this.lastDifferences = []; // Stocker les différences pour le filtrage
+        
+        // Listener pour la checkbox de filtrage des espaces
+        if (this.elements.showSpaceErrors) {
+            this.elements.showSpaceErrors.addEventListener('change', () => {
+                if (this.lastDifferences) {
+                    this.showDifferences(this.lastDifferences);
+                    
+                    // Mettre à jour aussi le résumé des erreurs si possible
+                    // (nécessite de recalculer les comptes filtrés, fait dans showDifferences mais pas mis à jour dans le header status-pill)
+                    // Pour l'instant on met juste à jour la liste.
+                }
+            });
+        }
     }
 
     /**
@@ -88,11 +103,18 @@ export class UIManager {
      * @param {Array} differences - Liste des différences trouvées
      */
     showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null) {
+        this.lastDifferences = differences || [];
+        
         this.elements.displayImage.src = `data:image/jpeg;base64,${imageBase64}`;
         this.elements.displayImage.style.display = 'block';
         this.elements.imageZoomContainer.style.display = 'block';
         this.elements.imagePlaceholder.style.display = 'none';
         this.elements.panelTitle.textContent = parachaName ? 'תוצאות הניתוח' : 'זיהוי אותיות';
+        
+        // Afficher la checkbox de filtrage si on a des résultats
+        if (this.elements.filterSpacesContainer) {
+            this.elements.filterSpacesContainer.style.display = parachaName ? 'block' : 'none';
+        }
         
         // Traduire le nom de la paracha en hébreu
         this.elements.parachaName.textContent = translateParachaName(parachaName);
@@ -229,6 +251,19 @@ export class UIManager {
             return;
         }
         
+        // Filtrage des erreurs d'espaces
+        const showSpaces = this.elements.showSpaceErrors ? this.elements.showSpaceErrors.checked : false;
+        
+        const filteredDifferences = (differences || []).filter(d => {
+            if (showSpaces) return true;
+            
+            // Masquer les erreurs qui sont UNIQUEMENT des espaces (missing ou extra)
+            if ((d.type === 'missing' || d.type === 'extra') && (!d.text || d.text.trim() === '')) {
+                return false;
+            }
+            return true;
+        });
+        
         if (!differences || differences.length === 0) {
             // Ne pas afficher de message ici - il est déjà affiché en haut
             // Afficher juste la légende
@@ -243,10 +278,24 @@ export class UIManager {
             return;
         }
         
-        // Compter les types de différences
-        const missingCount = differences.filter(d => d.type === 'missing').length;
-        const extraCount = differences.filter(d => d.type === 'extra').length;
-        const wrongCount = differences.filter(d => d.type === 'wrong').length;
+        // Compter les types de différences (FILTRÉES)
+        const missingCount = filteredDifferences.filter(d => d.type === 'missing').length;
+        const extraCount = filteredDifferences.filter(d => d.type === 'extra').length;
+        const wrongCount = filteredDifferences.filter(d => d.type === 'wrong').length;
+        
+        // Mettre à jour le résumé des erreurs dans le header (optionnel mais mieux)
+        const errorsStatusEl = document.getElementById('errorsStatus');
+        if (errorsStatusEl) {
+             const total = missingCount + extraCount + wrongCount;
+             if (total === 0 && differences.length > 0) {
+                 // Si toutes les erreurs sont masquées
+                 errorsStatusEl.textContent = 'שגיאות רווחים (מוסתר)';
+                 errorsStatusEl.className = 'info-value status-pill status-warning';
+             } else if (total > 0) {
+                 errorsStatusEl.textContent = `שגיאות: ${total} (חסר ${missingCount}, מיותר ${extraCount}, שגוי ${wrongCount})`;
+                 errorsStatusEl.className = 'info-value status-pill status-error';
+             }
+        }
         
         // Créer le texte d'explication
         let explanationText = '<div class="differences-explanation">';
@@ -260,7 +309,7 @@ export class UIManager {
             explanationText += `</div>`;
             
             // Afficher les lettres fausses avec ce qui était attendu (cliquables)
-            const wrongItems = differences.filter(d => d.type === 'wrong');
+            const wrongItems = filteredDifferences.filter(d => d.type === 'wrong');
             wrongItems.forEach((item) => {
                 const detected = item.text || '';
                 const expected = item.expected || '';
@@ -292,7 +341,7 @@ export class UIManager {
             explanationText += `</div>`;
             
             // Afficher les lettres manquantes avec leur contexte
-            const missingItems = differences.filter(d => d.type === 'missing');
+            const missingItems = filteredDifferences.filter(d => d.type === 'missing');
             missingItems.forEach((item, idx) => {
                 const missingChar = item.text || '';
                 const contextBefore = item.context_before || '';
@@ -320,7 +369,7 @@ export class UIManager {
             explanationText += `</div>`;
             
             // Afficher les lettres en trop (cliquables)
-            const extraItems = differences.filter(d => d.type === 'extra');
+            const extraItems = filteredDifferences.filter(d => d.type === 'extra');
             extraItems.forEach((item) => {
                 const extraChar = item.text || '';
                 const contextBefore = item.context_before || '';
@@ -655,16 +704,6 @@ export class UIManager {
     }
 
     /**
-     * Active/désactive le bouton de traitement
-     * @param {boolean} enabled - État du bouton
-     */
-    setProcessButtonEnabled(enabled) {
-        if (this.elements.processBtn) {
-            this.elements.processBtn.disabled = !enabled;
-        }
-    }
-
-    /**
      * Active/désactive le bouton de détection de lettres
      * @param {boolean} enabled - État du bouton
      */
@@ -681,11 +720,18 @@ export class UIManager {
     showLoading(show) {
         if (show) {
             this.elements.loadingSection.classList.add('active');
-            this.elements.processBtn.classList.add('loading');
-            this.elements.processBtn.disabled = true;
+            if (this.elements.detectLettersBtn) {
+                this.elements.detectLettersBtn.classList.add('loading');
+                this.elements.detectLettersBtn.disabled = true;
+            }
         } else {
             this.elements.loadingSection.classList.remove('active');
-            this.elements.processBtn.classList.remove('loading');
+            if (this.elements.detectLettersBtn) {
+                this.elements.detectLettersBtn.classList.remove('loading');
+                // Ne pas réactiver automatiquement ici, laisser l'appelant gérer si nécessaire
+                // ou réactiver si on suppose que la fin du chargement rend la main
+                this.elements.detectLettersBtn.disabled = false;
+            }
         }
     }
 
@@ -739,7 +785,7 @@ export class UIManager {
     reset() {
         this.elements.fileInfo.classList.remove('active');
         this.elements.fileInput.value = '';
-        this.setProcessButtonEnabled(false);
+        this.setDetectLettersButtonEnabled(false);
         this.showLoading(false);
         this.hideError();
         this.resetImageDisplay();

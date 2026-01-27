@@ -65,11 +65,6 @@ class App {
             this.handleFileSelect(e.dataTransfer.files[0]);
         });
 
-        // Bouton de traitement
-        this.ui.elements.processBtn.addEventListener('click', () => {
-            this.processImage();
-        });
-
         // Bouton de détection de lettres
         this.ui.elements.detectLettersBtn.addEventListener('click', () => {
             this.detectLetters();
@@ -195,33 +190,9 @@ class App {
             this.cropper = null;
         }
         // Activer les boutons de traitement
-        this.ui.setProcessButtonEnabled(true);
         this.ui.setDetectLettersButtonEnabled(true);
         this.ui.elements.acceptCropBtn.style.display = 'none';
         this.ui.elements.cancelCropBtn.style.display = 'none';
-    }
-
-    /**
-     * Traite l'image
-     */
-    async processImage() {
-        if (!this.currentFile) return;
-
-        try {
-            this.ui.showLoading(true);
-            this.ui.hideError();
-
-            // Utiliser l'image coupée acceptée si disponible, sinon l'originale
-            const fileToSend = this.acceptedCroppedFile || this.currentFile;
-            const result = await ApiService.processImage(fileToSend);
-            
-            this.currentImageBase64 = result.image;
-            this.ui.showResults(result.image, result.paracha);
-        } catch (error) {
-            this.ui.showError(error.message || config.MESSAGES.ERROR_PROCESS);
-        } finally {
-            this.ui.showLoading(false);
-        }
     }
 
     /**
@@ -287,7 +258,6 @@ class App {
             this.ui.elements.acceptCropBtn.style.display = 'none';
             this.ui.elements.cancelCropBtn.style.display = 'inline-flex';
             // Désactiver les boutons de traitement pendant le crop
-            this.ui.setProcessButtonEnabled(false);
             this.ui.setDetectLettersButtonEnabled(false);
         }
     }
@@ -317,7 +287,6 @@ class App {
         }
         
         // Réactiver les boutons (utiliser l'image acceptée si disponible, sinon l'originale)
-        this.ui.setProcessButtonEnabled(true);
         this.ui.setDetectLettersButtonEnabled(true);
     }
 
@@ -352,13 +321,9 @@ class App {
             this.cropper.stop();
             this.ui.elements.cropControls.style.display = 'none';
             
-            // Masquer le bouton d'application, afficher le bouton d'acceptation et d'annulation
-            this.ui.elements.applyCropBtn.style.display = 'none';
-            this.ui.elements.acceptCropBtn.style.display = 'inline-flex';
-            this.ui.elements.cancelCropBtn.style.display = 'inline-flex';
-            // Désactiver les boutons de traitement jusqu'à ce que l'utilisateur accepte l'image
-            this.ui.setProcessButtonEnabled(false);
-            this.ui.setDetectLettersButtonEnabled(false);
+            // Accepter directement (plus d'étape intermédiaire)
+            this.acceptCroppedImage();
+            
         } catch (error) {
             this.ui.showError('שגיאה בחיתוך: ' + error.message);
         }
@@ -368,38 +333,23 @@ class App {
      * Accepte l'image coupée et active les boutons de traitement
      */
     acceptCroppedImage() {
-        console.log('acceptCroppedImage called, croppedFile:', this.croppedFile);
-        if (!this.croppedFile) {
-            console.warn('Aucune image coupée à accepter');
-            return;
-        }
+        if (!this.croppedFile) return;
 
         // Accepter l'image coupée
         this.acceptedCroppedFile = this.croppedFile;
-        console.log('Image acceptée, acceptedCroppedFile:', this.acceptedCroppedFile);
         
-        // Activer les boutons de traitement AVANT de masquer les boutons de crop
-        // pour éviter tout problème de timing
+        // Activer les boutons de traitement
         if (this.ui.elements.detectLettersBtn) {
             this.ui.elements.detectLettersBtn.disabled = false;
-            console.log('detectLettersBtn disabled set to false');
-        }
-        if (this.ui.elements.processBtn) {
-            this.ui.elements.processBtn.disabled = false;
-            console.log('processBtn disabled set to false');
         }
         
         // Appeler aussi les fonctions de mise à jour
-        this.ui.setProcessButtonEnabled(true);
         this.ui.setDetectLettersButtonEnabled(true);
         
-        // Masquer tous les boutons de crop après avoir activé les boutons
+        // Masquer tous les boutons de crop
         this.ui.elements.applyCropBtn.style.display = 'none';
         this.ui.elements.acceptCropBtn.style.display = 'none';
         this.ui.elements.cancelCropBtn.style.display = 'none';
-        
-        // Forcer un reflow pour s'assurer que les changements sont appliqués
-        void this.ui.elements.detectLettersBtn.offsetHeight;
     }
 
     /**

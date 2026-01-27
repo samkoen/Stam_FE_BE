@@ -1,10 +1,13 @@
 /**
  * Configuration de l'application
  */
+// URL de base de l'API (depuis variable d'env VITE_API_URL ou défaut localhost)
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 export const config = {
     // URL de l'API backend
-    API_URL: 'http://localhost:8000/api/process-image',
-    API_DETECT_LETTERS: 'http://localhost:8000/api/detect-letters',
+    API_URL: `${API_BASE_URL}/api/process-image`,
+    API_DETECT_LETTERS: `${API_BASE_URL}/api/detect-letters`,
     
     // Formats de fichiers acceptés
     ACCEPTED_FORMATS: ['image/jpeg', 'image/jpg', 'image/png'],

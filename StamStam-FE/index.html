@@ -37,10 +37,6 @@
                         </div>
 
                         <div class="action-buttons">
-                            <button class="btn btn-primary" id="processBtn" disabled>
-                                <span class="btn-text">עבד תמונה</span>
-                                <span class="btn-loader"></span>
-                            </button>
                             <button class="btn btn-success" id="detectLettersBtn" disabled>
                                 <span class="btn-text">זהה אותיות</span>
                                 <span class="btn-loader"></span>
@@ -127,6 +123,14 @@
                                 <span class="info-value status-pill" id="errorsStatus" style="margin-right:8px;"></span>
                                 <span id="successMessage" style="display: none; margin-right: 10px;"></span>
                             </div>
+                            
+                            <div class="info-item filter-spaces-container" style="margin-top: 10px; display: none;" id="filterSpacesContainer">
+                                <label for="showSpaceErrors" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="showSpaceErrors">
+                                    <span>הצג שגיאות רווחים</span>
+                                </label>
+                            </div>
+
                             <div class="info-item" id="detectedTextItem" style="display: none;">
                                 <span class="info-label">טקסט מזוהה:</span>
                                 <div class="info-value detected-text" id="detectedText" style="display: block;">-</div>

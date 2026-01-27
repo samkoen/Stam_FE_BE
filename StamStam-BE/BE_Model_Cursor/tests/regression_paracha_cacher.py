@@ -141,7 +141,8 @@ TEST_CONFIG = [
 
 def count_differences(differences_info):
     """
-    Compte les différents types de différences dans differences_info.
+    Compte les différents types de différences dans differences_info,
+    en ignorant les erreurs qui ne concernent que des espaces.
     
     Args:
         differences_info: Liste de dictionnaires avec les différences
@@ -156,6 +157,12 @@ def count_differences(differences_info):
     
     for diff in differences_info:
         diff_type = diff.get('type', '')
+        diff_text = diff.get('text', '')
+        
+        # Ignorer les erreurs d'espaces (missing ou extra avec texte vide ou juste espaces)
+        if (diff_type == 'missing' or diff_type == 'extra') and (not diff_text or diff_text.strip() == ''):
+            continue
+            
         if diff_type == 'missing':
             counts['missing'] += 1
         elif diff_type == 'wrong':
@@ -249,6 +256,9 @@ def main():
     """
     Fonction principale qui teste toutes les images configurées.
     """
+    if sys.stdout.encoding.lower() != 'utf-8':
+        sys.stdout.reconfigure(encoding='utf-8')
+    
     # Chemin vers le dossier de test
     test_images_dir = os.path.join(current_dir, 'regression_test_images')
     

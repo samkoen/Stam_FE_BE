@@ -9,7 +9,7 @@ from BE_Model_Cursor.utils.logger import get_logger
 
 def read_paracha_text(file_path):
     """
-    Lit un fichier texte de paracha en encodage UTF-16.
+    Lit un fichier texte de paracha (UTF-8 ou UTF-16).
     
     Args:
         file_path: Chemin vers le fichier texte de la paracha
@@ -18,9 +18,20 @@ def read_paracha_text(file_path):
         list: Liste des lignes du texte (sans les retours à la ligne)
     """
     try:
-        with io.open(file_path, 'r', encoding='UTF-16') as file:
+        # Essayer d'abord en UTF-8
+        with io.open(file_path, 'r', encoding='utf-8') as file:
             lines = [line.rstrip() for line in file]
         return lines
+    except UnicodeDecodeError:
+        try:
+            # Fallback sur UTF-16
+            with io.open(file_path, 'r', encoding='utf-16') as file:
+                lines = [line.rstrip() for line in file]
+            return lines
+        except Exception as e:
+            logger = get_logger(__name__)
+            logger.error(f"Erreur lors de la lecture de {file_path} (UTF-16): {e}")
+            return []
     except Exception as e:
         logger = get_logger(__name__)
         logger.error(f"Erreur lors de la lecture de {file_path}: {e}")
@@ -52,8 +63,15 @@ def load_paracha_texts(base_path):
         file_path = os.path.join(base_path, filename)
         if os.path.exists(file_path):
             lines = read_paracha_text(file_path)
-            # Joindre toutes les lignes en un seul texte
-            paracha_texts[paracha_name] = ''.join(lines)
+            # Joindre toutes les lignes et nettoyer (enlever sauts de ligne mais GARDER les espaces)
+            raw_text = ''.join(lines)
+            # On remplace les sauts de ligne par des espaces pour éviter les mots collés
+            # Puis on normalise les espaces multiples
+            text_with_spaces = raw_text.replace('\n', ' ').replace('\r', ' ')
+            while '  ' in text_with_spaces:
+                text_with_spaces = text_with_spaces.replace('  ', ' ')
+            
+            paracha_texts[paracha_name] = text_with_spaces.strip()
         else:
             logger = get_logger(__name__)
             logger.warning(f"Fichier {file_path} introuvable")
@@ -90,11 +108,16 @@ def compare_with_parachot(detected_text, base_path):
     
     # Comparer avec chaque paracha
     diff_results = {}
-    logger.debug("Comparaisons avec les parachot:")
+    logger.debug("Comparaisons avec les parachot (comparaison sans espaces):")
     for paracha_name, reference_text in paracha_texts.items():
-        diff = dmp.diff_main(reference_text, detected_text)
+        # Pour la détection de la paracha, on compare sans les espaces
+        # car detected_text n'en contient pas encore à ce stade
+        ref_clean = reference_text.replace(' ', '').replace('\n', '')
+        det_clean = detected_text.replace(' ', '').replace('\n', '')
+        
+        diff = dmp.diff_main(ref_clean, det_clean)
         num_diffs = len(diff)
-        logger.debug(f"  - {paracha_name}: {num_diffs} différences (texte ref longueur: {len(reference_text)})")
+        logger.debug(f"  - {paracha_name}: {num_diffs} différences (ref clean len: {len(ref_clean)})")
         diff_results[paracha_name] = diff
     
     # Trouver la meilleure correspondance initiale (celle avec le moins de différences)
