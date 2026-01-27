@@ -142,14 +142,14 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
             from config import config as app_config
             weight_file = app_config.MODEL_PATH
         except ImportError:
-            weight_file = os.path.join(backend_dir_path, 'ocr', 'model', 'output', 'Nadam_beta_1_256_30.hdf5')
+        weight_file = os.path.join(backend_dir_path, 'ocr', 'model', 'output', 'Nadam_beta_1_256_30.hdf5')
     
     if overflow_dir is None:
         try:
             from config import config as app_config
             overflow_dir = app_config.OVERFLOW_DIR
         except ImportError:
-            overflow_dir = os.path.join(backend_dir_path, 'overflow')
+        overflow_dir = os.path.join(backend_dir_path, 'overflow')
     
     logger = get_logger(__name__, debug=debug)
     

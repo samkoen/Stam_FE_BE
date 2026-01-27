@@ -273,7 +273,7 @@ def _show_image_with_text(image, title, text_lines=None):
         cv2.resizeWindow(title, int(w * scale), int(h * scale))
     else:
         cv2.resizeWindow(title, w, h)
-        
+    
     cv2.imshow(title, display_image)
     cv2.waitKey(0)
 
@@ -336,7 +336,7 @@ def _show_rectangles_interactive(image, rects, title, step_name, color=(0, 255, 
         cv2.resizeWindow(title, int(w * scale), int(h * scale))
     else:
         cv2.resizeWindow(title, w, h)
-        
+    
     cv2.imshow(title, display_image)
     
     # Boucle interactive : ajouter les rectangles un par un avec espace
