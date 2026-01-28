@@ -31,6 +31,21 @@ class RectangleWithLine:
         # Couleur par défaut : vert (correct)
         self.color = color if color is not None else (0, 255, 0)
     
+    def copy(self) -> 'RectangleWithLine':
+        """
+        Crée une copie de l'instance.
+        
+        Returns:
+            Une nouvelle instance RectangleWithLine avec les mêmes valeurs.
+        """
+        return RectangleWithLine(
+            self.x, self.y, self.w, self.h,
+            self.line_number,
+            self.detected_letter,
+            self.text_position,
+            self.color
+        )
+    
     def __iter__(self):
         """
         Permet de déballer le rectangle comme un tuple (x, y, w, h) pour compatibilité.

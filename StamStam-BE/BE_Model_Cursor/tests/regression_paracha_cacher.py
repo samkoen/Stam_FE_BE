@@ -4,6 +4,7 @@ Ce test vérifie que les images produisent les résultats attendus en termes de 
 - Nombre de lettres manquantes (missing)
 - Nombre de substitutions (wrong)
 - Nombre de lettres en trop (extra)
+- Nombre d'espaces manquants (missing_spaces)
 
 Les fichiers à tester et leurs résultats attendus sont hardcodés dans ce script.
 """
@@ -28,7 +29,17 @@ TEST_CONFIG = [
         'expected': {
             'missing': 0,
             'substitution': 0,  # 'wrong' dans differences_info
-            'extra': 0
+            'extra': 0,
+            'missing_spaces': 0
+        }
+    },
+{
+        'filename': 'chema_2mots_colles.jpg',
+        'expected': {
+            'missing': 0,
+            'substitution': 0,
+            'extra': 0,
+            'missing_spaces': 1
         }
     },
     {
@@ -36,7 +47,8 @@ TEST_CONFIG = [
         'expected': {
             'missing': 0,
             'substitution': 0,
-            'extra': 0
+            'extra': 0,
+            'missing_spaces': 0
         }
     },
     {
@@ -44,7 +56,8 @@ TEST_CONFIG = [
         'expected': {
             'missing': 0,
             'substitution': 0,
-            'extra': 0
+            'extra': 0,
+            'missing_spaces': 0
         }
     },
     {
@@ -52,7 +65,8 @@ TEST_CONFIG = [
         'expected': {
             'missing': 0,
             'substitution': 0,
-            'extra': 0
+            'extra': 0,
+            'missing_spaces': 0
         }
     },
 {
@@ -60,7 +74,8 @@ TEST_CONFIG = [
         'expected': {
             'missing': 0,
             'substitution': 0,  # 'wrong' dans differences_info
-            'extra': 0
+            'extra': 0,
+            'missing_spaces': 0
         }
     },
 {
@@ -68,7 +83,8 @@ TEST_CONFIG = [
         'expected': {
             'missing': 0,
             'substitution': 0,  # 'wrong' dans differences_info
-            'extra': 0
+            'extra': 0,
+            'missing_spaces': 0
         }
     },
 {
@@ -76,7 +92,8 @@ TEST_CONFIG = [
         'expected': {
             'missing': 0,
             'substitution': 0,
-            'extra': 1 # ds la marge basse du parchemin
+            'extra': 1, # ds la marge basse du parchemin
+            'missing_spaces': 0
         }
     },
 {
@@ -84,7 +101,8 @@ TEST_CONFIG = [
         'expected': {
             'missing': 0,
             'substitution': 0,
-            'extra': 3 # ds les marges
+            'extra': 2, # ds les marges
+            'missing_spaces': 0
         }
     },
     {
@@ -92,7 +110,8 @@ TEST_CONFIG = [
         'expected': {
             'missing': 2,
             'substitution': 0,
-            'extra': 0
+            'extra': 0,
+            'missing_spaces': 0
         }
     },
 {
@@ -100,7 +119,8 @@ TEST_CONFIG = [
         'expected': {
             'missing': 1,
             'substitution': 0,
-            'extra': 0
+            'extra': 0,
+            'missing_spaces': 0
         }
     },
 {
@@ -108,7 +128,8 @@ TEST_CONFIG = [
         'expected': {
             'missing': 3,
             'substitution': 0,
-            'extra': 0
+            'extra': 0,
+            'missing_spaces': 0
         }
     },
 {
@@ -116,7 +137,8 @@ TEST_CONFIG = [
         'expected': {
             'missing': 3,
             'substitution': 1,
-            'extra': 0
+            'extra': 0,
+            'missing_spaces': 0
         }
     },
     {
@@ -124,14 +146,16 @@ TEST_CONFIG = [
         'expected': {
             'missing': 0,
             'substitution': 0,
-            'extra': 6
+            'extra': 6,
+            'missing_spaces': 0
         }
     },{
         'filename': 'mezuza_mot_en_plus.jpg',
         'expected': {
             'missing': 0,
             'substitution': 1, #a ameliore
-            'extra': 7
+            'extra': 7,
+            'missing_spaces': 0
         }
     },
     # Ajouter d'autres fichiers ici avec leurs résultats attendus
@@ -142,33 +166,37 @@ TEST_CONFIG = [
 def count_differences(differences_info):
     """
     Compte les différents types de différences dans differences_info,
-    en ignorant les erreurs qui ne concernent que des espaces.
+    en séparant les erreurs d'espaces des erreurs de lettres.
     
     Args:
         differences_info: Liste de dictionnaires avec les différences
         
     Returns:
-        dict: {'missing': int, 'substitution': int, 'extra': int}
+        dict: {'missing': int, 'substitution': int, 'extra': int, 'missing_spaces': int}
     """
     if differences_info is None:
-        return {'missing': 0, 'substitution': 0, 'extra': 0}
+        return {'missing': 0, 'substitution': 0, 'extra': 0, 'missing_spaces': 0}
     
-    counts = {'missing': 0, 'substitution': 0, 'extra': 0}
+    counts = {'missing': 0, 'substitution': 0, 'extra': 0, 'missing_spaces': 0}
     
     for diff in differences_info:
         diff_type = diff.get('type', '')
         diff_text = diff.get('text', '')
         
-        # Ignorer les erreurs d'espaces (missing ou extra avec texte vide ou juste espaces)
-        if (diff_type == 'missing' or diff_type == 'extra') and (not diff_text or diff_text.strip() == ''):
-            continue
-            
+        # Détecter si c'est une erreur d'espace
+        is_space_error = (diff_text == ' ' or (diff_text and diff_text.strip() == ''))
+        
         if diff_type == 'missing':
-            counts['missing'] += 1
+            if is_space_error:
+                counts['missing_spaces'] += 1
+            else:
+                counts['missing'] += 1
         elif diff_type == 'wrong':
             counts['substitution'] += 1
         elif diff_type == 'extra':
-            counts['extra'] += 1
+            # Les espaces en trop ne sont pas comptés dans missing_spaces, seulement les manquants
+            if not is_space_error:
+                counts['extra'] += 1
     
     return counts
 
@@ -221,15 +249,24 @@ def single_image_test(image_path, expected):
         # Compter les différences
         actual = count_differences(differences_info)
         
-        # Comparer avec les résultats attendus
+        # S'assurer que missing_spaces est défini dans expected (valeur par défaut: 0)
+        expected_missing_spaces = expected.get('missing_spaces', 0)
+        
+        # Comparer avec les résultats attendus - missing_spaces DOIT correspondre exactement
         match = {
             'missing': actual['missing'] == expected['missing'],
             'substitution': actual['substitution'] == expected['substitution'],
-            'extra': actual['extra'] == expected['extra']
+            'extra': actual['extra'] == expected['extra'],
+            'missing_spaces': actual['missing_spaces'] == expected_missing_spaces
         }
         
-        # Succès si tous les compteurs correspondent
+        # Succès si TOUS les compteurs correspondent (y compris missing_spaces)
+        # Si missing_spaces ne correspond pas, le test DOIT échouer
         success = all(match.values())
+        
+        # Vérification explicite : si missing_spaces ne correspond pas, forcer l'échec
+        if actual['missing_spaces'] != expected_missing_spaces:
+            success = False
         
         return {
             'success': success,
@@ -310,14 +347,17 @@ def main():
                 print(f"  Erreur: {result['error']}")
             else:
                 print(f"  Paracha: {result['paracha_name']}")
-                print(f"  Attendu: missing={expected['missing']}, substitution={expected['substitution']}, extra={expected['extra']}")
-                print(f"  Obtenu: missing={result['actual']['missing']}, substitution={result['actual']['substitution']}, extra={result['actual']['extra']}")
+                expected_missing_spaces = expected.get('missing_spaces', 0)
+                print(f"  Attendu: missing={expected['missing']}, substitution={expected['substitution']}, extra={expected['extra']}, missing_spaces={expected_missing_spaces}")
+                print(f"  Obtenu: missing={result['actual']['missing']}, substitution={result['actual']['substitution']}, extra={result['actual']['extra']}, missing_spaces={result['actual']['missing_spaces']}")
                 if not result['match']['missing']:
                     print(f"    ✗ Missing: attendu {expected['missing']}, obtenu {result['actual']['missing']}")
                 if not result['match']['substitution']:
                     print(f"    ✗ Substitution: attendu {expected['substitution']}, obtenu {result['actual']['substitution']}")
                 if not result['match']['extra']:
                     print(f"    ✗ Extra: attendu {expected['extra']}, obtenu {result['actual']['extra']}")
+                if not result['match'].get('missing_spaces', True):
+                    print(f"    ✗ MISSING SPACES: attendu {expected_missing_spaces}, obtenu {result['actual']['missing_spaces']} - LE TEST ÉCHOUE CAR LES ESPACES MANQUANTS NE CORRESPONDENT PAS!")
     
     # Résumé final
     print()
@@ -340,9 +380,10 @@ def main():
                 print(f"  Erreur: {r['error']}")
             else:
                 print(f"  Paracha: {r['paracha_name']}")
-                print(f"  Attendu: missing={r['expected']['missing']}, substitution={r['expected']['substitution']}, extra={r['expected']['extra']}")
+                expected_missing_spaces = r['expected'].get('missing_spaces', 0)
+                print(f"  Attendu: missing={r['expected']['missing']}, substitution={r['expected']['substitution']}, extra={r['expected']['extra']}, missing_spaces={expected_missing_spaces}")
                 if r['actual']:
-                    print(f"  Obtenu: missing={r['actual']['missing']}, substitution={r['actual']['substitution']}, extra={r['actual']['extra']}")
+                    print(f"  Obtenu: missing={r['actual']['missing']}, substitution={r['actual']['substitution']}, extra={r['actual']['extra']}, missing_spaces={r['actual']['missing_spaces']}")
                     if r['match']:
                         if not r['match']['missing']:
                             print(f"    ✗ Missing: attendu {r['expected']['missing']}, obtenu {r['actual']['missing']}")
@@ -350,6 +391,8 @@ def main():
                             print(f"    ✗ Substitution: attendu {r['expected']['substitution']}, obtenu {r['actual']['substitution']}")
                         if not r['match']['extra']:
                             print(f"    ✗ Extra: attendu {r['expected']['extra']}, obtenu {r['actual']['extra']}")
+                        if not r['match'].get('missing_spaces', True):
+                            print(f"    ✗ MISSING SPACES: attendu {expected_missing_spaces}, obtenu {r['actual']['missing_spaces']} - LE TEST ÉCHOUE CAR LES ESPACES MANQUANTS NE CORRESPONDENT PAS!")
             print()
     else:
         print("Tous les tests sont passés avec succès ! ✓")

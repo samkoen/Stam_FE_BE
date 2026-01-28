@@ -161,8 +161,8 @@ def main():
         sys.stdout.reconfigure(encoding='utf-8')
     
     # Fichier de test hardcodé
-    TEST_IMAGE_FILE = '003.jpg'
-    #TEST_IMAGE_FILE = 'vehaya_avec_un_mot_en_plus.jpg'
+    #TEST_IMAGE_FILE = '009.jpg'
+    TEST_IMAGE_FILE = 'mezuza_mot_en_plus.jpg'
 
     
     # Charger l'image de test

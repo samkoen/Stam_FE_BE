@@ -122,13 +122,28 @@ export class UIManager {
         // Statut global (complete / incomplete) et erreurs
         const parachaStatusEl = document.getElementById('parachaStatus');
         const errorsStatusEl = document.getElementById('errorsStatus');
+        
+        let hasRealErrors = false;
+        if (errors) {
+            hasRealErrors = (errors.missing || 0) + (errors.extra || 0) + (errors.wrong || 0) > 0;
+        } else if (differences && differences.length > 0) {
+            // Filtrer les espaces si nécessaire pour déterminer s'il y a de "vraies" erreurs
+            // Ici on considère tout ce qui est dans differences comme erreur par défaut
+            hasRealErrors = true;
+        }
+
         if (parachaStatusEl) {
             if (parachaStatus === 'complete') {
                 parachaStatusEl.textContent = 'פרשה מלאה';
                 parachaStatusEl.className = 'info-value status-pill status-success';
             } else if (parachaStatus === 'incomplete') {
-                parachaStatusEl.textContent = 'פרשה חלקית';
-                parachaStatusEl.className = 'info-value status-pill status-warning';
+                if (hasRealErrors) {
+                    parachaStatusEl.textContent = 'פרשה חלקית (עם שגיאות)';
+                    parachaStatusEl.className = 'info-value status-pill status-error'; // Rouge/Orange pour attirer l'attention
+                } else {
+                    parachaStatusEl.textContent = 'פרשה חלקית (תקינה)';
+                    parachaStatusEl.className = 'info-value status-pill status-info'; // Bleu pour info neutre
+                }
             } else {
                 parachaStatusEl.textContent = '';
                 parachaStatusEl.className = 'info-value status-pill';
@@ -241,10 +256,63 @@ export class UIManager {
     }
 
     /**
+     * Met à jour les overlays pour les erreurs d'espaces sur l'image
+     */
+    updateSpaceErrorOverlays() {
+        // Supprimer les overlays existants
+        const existingOverlays = this.elements.imageZoomContainer.querySelectorAll('.space-error-overlay');
+        existingOverlays.forEach(el => el.remove());
+        
+        // Vérifier si on doit afficher les erreurs d'espaces
+        const showSpaces = this.elements.showSpaceErrors ? this.elements.showSpaceErrors.checked : false;
+        if (!showSpaces || !this.lastDifferences) return;
+        
+        const image = this.elements.displayImage;
+        if (!image || !image.naturalWidth) return;
+        
+        const imgRect = image.getBoundingClientRect();
+        // Eviter division par zéro
+        if (image.naturalWidth === 0 || image.naturalHeight === 0) return;
+        
+        const scaleX = imgRect.width / image.naturalWidth;
+        const scaleY = imgRect.height / image.naturalHeight;
+        const imgLeft = image.offsetLeft;
+        const imgTop = image.offsetTop;
+        
+        this.lastDifferences.forEach(diff => {
+            // Filtrer pour ne prendre que les erreurs d'espaces
+            const isSpaceError = (diff.type === 'missing' || diff.type === 'extra') && 
+                                 (!diff.text || diff.text.trim() === '' || diff.text === ' ');
+            
+            if (isSpaceError && diff.marker_position) {
+                const [x, y, w, h] = diff.marker_position;
+                
+                const overlay = document.createElement('div');
+                overlay.className = 'space-error-overlay';
+                overlay.style.position = 'absolute';
+                overlay.style.border = '2px solid red';
+                overlay.style.left = `${imgLeft + x * scaleX}px`;
+                overlay.style.top = `${imgTop + y * scaleY}px`;
+                overlay.style.width = `${w * scaleX}px`;
+                overlay.style.height = `${h * scaleY}px`;
+                overlay.style.pointerEvents = 'none'; // Laisser passer les clics
+                overlay.style.zIndex = '10'; // Au-dessus de l'image
+                
+                this.elements.imageZoomContainer.appendChild(overlay);
+            }
+        });
+    }
+
+    /**
      * Affiche les différences trouvées entre le texte détecté et le texte de référence
      * @param {Array} differences - Liste des différences
      */
     showDifferences(differences) {
+        // Sauvegarder les différences pour les mises à jour ultérieures (zoom, filtre)
+        this.lastDifferences = differences;
+        // Mettre à jour les overlays
+        this.updateSpaceErrorOverlays();
+
         const differencesInfoEl = document.getElementById('differencesInfo');
         if (!differencesInfoEl) {
             console.warn('Élément differencesInfo non trouvé');
@@ -258,7 +326,11 @@ export class UIManager {
             if (showSpaces) return true;
             
             // Masquer les erreurs qui sont UNIQUEMENT des espaces (missing ou extra)
-            if ((d.type === 'missing' || d.type === 'extra') && (!d.text || d.text.trim() === '')) {
+            // Un espace peut être représenté par ' ' ou une chaîne qui ne contient que des espaces
+            const isSpaceError = (d.type === 'missing' || d.type === 'extra') && 
+                                 (!d.text || d.text.trim() === '' || d.text === ' ');
+            
+            if (isSpaceError) {
                 return false;
             }
             return true;
@@ -278,22 +350,58 @@ export class UIManager {
             return;
         }
         
-        // Compter les types de différences (FILTRÉES)
-        const missingCount = filteredDifferences.filter(d => d.type === 'missing').length;
-        const extraCount = filteredDifferences.filter(d => d.type === 'extra').length;
+        // Identifier les erreurs d'espaces (pour les exclure des compteurs de lettres)
+        const isSpaceError = (d) => {
+            const isSpace = (d.text === ' ' || (d.text && d.text.trim() === ''));
+            return (d.type === 'missing' || d.type === 'extra') && isSpace;
+        };
+        
+        // Compter les erreurs d'espaces
+        const spaceErrors = filteredDifferences.filter(isSpaceError);
+        const spaceErrorsCount = spaceErrors.length;
+        
+        // Compter les types de différences (FILTRÉES, en EXCLUANT les erreurs d'espaces)
+        const missingCount = filteredDifferences.filter(d => d.type === 'missing' && !isSpaceError(d)).length;
+        const extraCount = filteredDifferences.filter(d => d.type === 'extra' && !isSpaceError(d)).length;
         const wrongCount = filteredDifferences.filter(d => d.type === 'wrong').length;
         
         // Mettre à jour le résumé des erreurs dans le header (optionnel mais mieux)
         const errorsStatusEl = document.getElementById('errorsStatus');
         if (errorsStatusEl) {
-             const total = missingCount + extraCount + wrongCount;
-             if (total === 0 && differences.length > 0) {
-                 // Si toutes les erreurs sont masquées
-                 errorsStatusEl.textContent = 'שגיאות רווחים (מוסתר)';
-                 errorsStatusEl.className = 'info-value status-pill status-warning';
-             } else if (total > 0) {
-                 errorsStatusEl.textContent = `שגיאות: ${total} (חסר ${missingCount}, מיותר ${extraCount}, שגוי ${wrongCount})`;
+             const letterErrorsTotal = missingCount + extraCount + wrongCount;
+             
+             // Si on a des erreurs de lettres OU (des erreurs d'espaces ET qu'on veut les voir)
+             if (letterErrorsTotal > 0 || (showSpaces && spaceErrorsCount > 0)) {
+                 let statusText = `שגיאות: ${letterErrorsTotal} (חסר ${missingCount}, מיותר ${extraCount}, שגוי ${wrongCount})`;
+                 
+                 if (showSpaces && spaceErrorsCount > 0) {
+                     statusText += ` + ${spaceErrorsCount} רווחים`;
+                 }
+                 
+                 errorsStatusEl.textContent = statusText;
                  errorsStatusEl.className = 'info-value status-pill status-error';
+             } 
+             // Si on n'a pas d'erreurs de lettres visibles, mais qu'il y a des différences (donc des espaces cachés)
+             else if (differences.length > 0 && !showSpaces) {
+                 // Vérifier s'il y a vraiment des différences cachées (espaces)
+                 // On peut le savoir car filteredDifferences est vide ou ne contient pas d'espaces, 
+                 // mais differences en contient.
+                 const rawSpaceErrors = differences.filter(d => {
+                     const isSpace = (d.text === ' ' || (d.text && d.text.trim() === ''));
+                     return (d.type === 'missing' || d.type === 'extra') && isSpace;
+                 }).length;
+                 
+                 if (rawSpaceErrors > 0) {
+                     errorsStatusEl.textContent = 'שגיאות רווחים (מוסתר)';
+                     errorsStatusEl.className = 'info-value status-pill status-warning';
+                 } else {
+                     // Cas rare : différences qui ne sont ni lettres ni espaces (ne devrait pas arriver avec la logique actuelle)
+                     errorsStatusEl.textContent = 'ללא שגיאות';
+                     errorsStatusEl.className = 'info-value status-pill status-success';
+                 }
+             } else {
+                 errorsStatusEl.textContent = 'ללא שגיאות';
+                 errorsStatusEl.className = 'info-value status-pill status-success';
              }
         }
         
@@ -340,8 +448,8 @@ export class UIManager {
             explanationText += `<span class="diff-count">${missingCount}</span>`;
             explanationText += `</div>`;
             
-            // Afficher les lettres manquantes avec leur contexte
-            const missingItems = filteredDifferences.filter(d => d.type === 'missing');
+            // Afficher les lettres manquantes avec leur contexte (exclure les espaces)
+            const missingItems = filteredDifferences.filter(d => d.type === 'missing' && !isSpaceError(d));
             missingItems.forEach((item, idx) => {
                 const missingChar = item.text || '';
                 const contextBefore = item.context_before || '';
@@ -368,8 +476,8 @@ export class UIManager {
             explanationText += `<span class="diff-count">${extraCount}</span>`;
             explanationText += `</div>`;
             
-            // Afficher les lettres en trop (cliquables)
-            const extraItems = filteredDifferences.filter(d => d.type === 'extra');
+            // Afficher les lettres en trop (cliquables, exclure les espaces)
+            const extraItems = filteredDifferences.filter(d => d.type === 'extra' && !isSpaceError(d));
             extraItems.forEach((item) => {
                 const extraChar = item.text || '';
                 const contextBefore = item.context_before || '';
@@ -392,6 +500,68 @@ export class UIManager {
             });
         }
         
+        // Afficher les erreurs d'espaces si la checkbox est cochée
+        if (showSpaces && spaceErrorsCount > 0) {
+            const missingSpaces = spaceErrors.filter(d => d.type === 'missing');
+            const extraSpaces = spaceErrors.filter(d => d.type === 'extra');
+            
+            explanationText += `<div class="diff-item diff-space" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">`;
+            explanationText += `<span class="diff-icon">⚪</span>`;
+            explanationText += `<span class="diff-label">שגיאות רווחים:</span>`;
+            explanationText += `<span class="diff-count">${spaceErrorsCount}</span>`;
+            explanationText += `</div>`;
+            
+            // Afficher les espaces manquants
+            if (missingSpaces.length > 0) {
+                explanationText += `<div class="diff-subsection" style="margin-left: 20px; margin-top: 10px;">`;
+                explanationText += `<div class="diff-subtitle">רווחים חסרים (${missingSpaces.length}):</div>`;
+                missingSpaces.forEach((item) => {
+                    const contextBefore = item.context_before || '';
+                    const contextAfter = item.context_after || '';
+                    const markerPos = item.marker_position;
+                    const markerPosStr = markerPos ? JSON.stringify(markerPos) : '';
+                    
+                    explanationText += `<div class="diff-space-item" data-marker-pos="${markerPosStr}" style="cursor: pointer; margin: 5px 0; padding: 5px; background: #ffe6e6; border-radius: 4px;">`;
+                    explanationText += `<div class="diff-space-char">חסר רווח</div>`;
+                    if (contextBefore || contextAfter) {
+                        explanationText += `<div class="diff-context">`;
+                        explanationText += `<span class="context-before">${contextBefore}</span>`;
+                        explanationText += `<span class="context-missing" style="color: #ff0000; font-weight: bold;">[ ]</span>`;
+                        explanationText += `<span class="context-after">${contextAfter}</span>`;
+                        explanationText += `</div>`;
+                    }
+                    explanationText += `</div>`;
+                });
+                explanationText += `</div>`;
+            }
+            
+            // Afficher les espaces en trop
+            if (extraSpaces.length > 0) {
+                explanationText += `<div class="diff-subsection" style="margin-left: 20px; margin-top: 10px;">`;
+                explanationText += `<div class="diff-subtitle">רווחים מיותרים (${extraSpaces.length}):</div>`;
+                extraSpaces.forEach((item) => {
+                    const contextBefore = item.context_before || '';
+                    const contextAfter = item.context_after || '';
+                    const markerPos = item.marker_position;
+                    const rect = item.rect || null;
+                    const markerPosStr = markerPos ? JSON.stringify(markerPos) : '';
+                    const rectStr = rect ? JSON.stringify(rect) : '';
+                    
+                    explanationText += `<div class="diff-space-item" data-marker-pos="${markerPosStr}" data-rect="${rectStr}" style="cursor: pointer; margin: 5px 0; padding: 5px; background: #e6f3ff; border-radius: 4px;">`;
+                    explanationText += `<div class="diff-space-char">מיותר רווח</div>`;
+                    if (contextBefore || contextAfter) {
+                        explanationText += `<div class="diff-context">`;
+                        explanationText += `<span class="context-before">${contextBefore}</span>`;
+                        explanationText += `<span class="context-extra" style="color: #0000ff; font-weight: bold;">[ ]</span>`;
+                        explanationText += `<span class="context-after">${contextAfter}</span>`;
+                        explanationText += `</div>`;
+                    }
+                    explanationText += `</div>`;
+                });
+                explanationText += `</div>`;
+            }
+        }
+        
         explanationText += '<div class="diff-legend">';
         explanationText += '<div class="legend-item"><span class="legend-color" style="background: #00ff00;"></span> אותיות נכונות</div>';
         if (wrongCount > 0) {
@@ -409,6 +579,7 @@ export class UIManager {
         this.setupMissingLetterClickHandlers();
         this.setupExtraLetterClickHandlers();
         this.setupWrongLetterClickHandlers();
+        this.setupSpaceErrorClickHandlers();
     }
     
     /**
@@ -478,6 +649,46 @@ export class UIManager {
                         }
                     } catch (e) {
                         console.error('Erreur lors du parsing de la position:', e);
+                    }
+                }
+            });
+        });
+    }
+    
+    /**
+     * Configure les gestionnaires de clic pour les erreurs d'espaces
+     * Permet de zoomer et centrer sur la position de l'erreur d'espace dans l'image
+     */
+    setupSpaceErrorClickHandlers() {
+        const spaceItems = document.querySelectorAll('.diff-space-item');
+        spaceItems.forEach((item) => {
+            item.addEventListener('click', () => {
+                // Essayer d'abord avec marker_position
+                const markerPosStr = item.getAttribute('data-marker-pos');
+                if (markerPosStr && markerPosStr !== 'null' && markerPosStr !== '') {
+                    try {
+                        const markerPos = JSON.parse(markerPosStr);
+                        if (markerPos && Array.isArray(markerPos) && markerPos.length === 4) {
+                            // Centrer et zoomer sur la position du marqueur
+                            this.zoomToPosition(markerPos[0], markerPos[1], markerPos[2], markerPos[3]);
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('Erreur lors du parsing de la position du marqueur:', e);
+                    }
+                }
+                
+                // Fallback sur rect si disponible
+                const rectStr = item.getAttribute('data-rect');
+                if (rectStr && rectStr !== 'null' && rectStr !== '') {
+                    try {
+                        const rect = JSON.parse(rectStr);
+                        if (rect && Array.isArray(rect) && rect.length === 4) {
+                            // Centrer et zoomer sur la position du rectangle
+                            this.zoomToPosition(rect[0], rect[1], rect[2], rect[3]);
+                        }
+                    } catch (e) {
+                        console.error('Erreur lors du parsing de la position du rectangle:', e);
                     }
                 }
             });
@@ -696,6 +907,9 @@ export class UIManager {
                     container.style.justifyContent = 'center';
                     img.style.margin = '0 auto';
                 }
+                
+                // Mettre à jour les overlays d'erreurs d'espaces
+                this.updateSpaceErrorOverlays();
             } else {
                 // Si les dimensions naturelles ne sont pas encore disponibles, attendre le chargement
                 // L'événement 'load' se chargera d'appliquer le zoom
@@ -790,6 +1004,44 @@ export class UIManager {
         this.hideError();
         this.resetImageDisplay();
         this.elements.resetBtn.style.display = 'none';
+        
+        // Nettoyage supplémentaire des résultats
+        if (this.elements.detectedText) this.elements.detectedText.textContent = '';
+        const detectedTextItem = document.getElementById('detectedTextItem');
+        if (detectedTextItem) detectedTextItem.style.display = 'none';
+        
+        const differencesInfo = document.getElementById('differencesInfo');
+        if (differencesInfo) {
+            differencesInfo.innerHTML = '';
+            differencesInfo.style.display = 'none';
+        }
+        
+        if (this.elements.filterSpacesContainer) {
+            this.elements.filterSpacesContainer.style.display = 'none';
+        }
+        
+        const parachaStatusEl = document.getElementById('parachaStatus');
+        if (parachaStatusEl) {
+            parachaStatusEl.textContent = '';
+            parachaStatusEl.className = 'info-value status-pill';
+        }
+        
+        const errorsStatusEl = document.getElementById('errorsStatus');
+        if (errorsStatusEl) {
+            errorsStatusEl.textContent = '';
+            errorsStatusEl.className = 'info-value status-pill';
+        }
+        
+        const successMessageEl = document.getElementById('successMessage');
+        if (successMessageEl) {
+            successMessageEl.style.display = 'none';
+        }
+        
+        // Supprimer les overlays d'erreur
+        const existingOverlays = this.elements.imageZoomContainer.querySelectorAll('.space-error-overlay');
+        existingOverlays.forEach(el => el.remove());
+        
+        this.lastDifferences = [];
     }
 
     /**

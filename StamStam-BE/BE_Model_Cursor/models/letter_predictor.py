@@ -141,12 +141,14 @@ def predict_letters(image, rects, weight_file):
     # Charger le modèle (mise en cache automatique)
     model = _load_model(weight_file)
     
-    # Faire les prédictions
-    predictions = []
-    for i in range(len(test_data)):
-        probs = model.predict(test_data[np.newaxis, i], batch_size=128, verbose=0)
-        prediction = probs.argmax(axis=1)
-        predictions.append(prediction[0])
+    # Faire les prédictions en batch (beaucoup plus rapide)
+    # Au lieu d'appeler predict() pour chaque image individuellement,
+    # on passe tout le tableau test_data d'un coup.
+    if len(test_data) > 0:
+        probs = model.predict(test_data, batch_size=128, verbose=0)
+        predictions = probs.argmax(axis=1).tolist()
+    else:
+        predictions = []
     
     return predictions
 

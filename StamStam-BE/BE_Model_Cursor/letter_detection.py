@@ -18,7 +18,9 @@ from BE_Model_Cursor.utils.rectangle_with_line import RectangleWithLine
 from BE_Model_Cursor.models.letter_predictor import predict_letters, letter_code_to_hebrew
 from BE_Model_Cursor.comparison.paracha_matcher import detect_paracha, load_paracha_texts
 from BE_Model_Cursor.comparison.text_alignment import apply_segmentation_corrections
+from BE_Model_Cursor.comparison.space_comparator import SpaceComparator
 from BE_Model_Cursor.utils.logger import get_logger
+from BE_Model_Cursor.utils.margin_filter import filter_margin_noise
 import diff_match_patch as dmp_module
 
 
@@ -142,14 +144,14 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
             from config import config as app_config
             weight_file = app_config.MODEL_PATH
         except ImportError:
-        weight_file = os.path.join(backend_dir_path, 'ocr', 'model', 'output', 'Nadam_beta_1_256_30.hdf5')
+         weight_file = os.path.join(backend_dir_path, 'ocr', 'model', 'output', 'Nadam_beta_1_256_30.hdf5')
     
     if overflow_dir is None:
         try:
             from config import config as app_config
             overflow_dir = app_config.OVERFLOW_DIR
         except ImportError:
-        overflow_dir = os.path.join(backend_dir_path, 'overflow')
+            overflow_dir = os.path.join(backend_dir_path, 'overflow')
     
     logger = get_logger(__name__, debug=debug)
     
@@ -206,6 +208,11 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
     valid_rects_final = list(valid_rects_final)
     valid_codes = list(valid_codes)
     
+    # Filtrer le bruit dans les marges (lettres isolées)
+    if debug:
+        logger.debug("Filtrage du bruit dans les marges...")
+    valid_rects_final, valid_codes = filter_margin_noise(valid_rects_final, valid_codes, image.shape, logger)
+    
     for i, rect in enumerate(valid_rects_final):
         if isinstance(rect, RectangleWithLine):
             rect.text_position = i
@@ -242,8 +249,15 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
             valid_rects_final = corrected_rects
             valid_codes = corrected_codes
             
-            # Recalculer le texte détecté en incluant la détection d'espaces
-            detected_text = ''
+            # Construire le texte détecté SANS espaces d'abord
+            detected_text_without_spaces = ''
+            for i, rect in enumerate(valid_rects_final):
+                letter = ''
+                if isinstance(rect, RectangleWithLine) and rect.detected_letter:
+                    letter = rect.detected_letter
+                elif i < len(valid_codes):
+                    letter = letter_code_to_hebrew(valid_codes[i]) if valid_codes[i] != 27 else ''
+                detected_text_without_spaces += letter
             
             # Calculer la largeur moyenne
             if len(valid_rects_final) > 0:
@@ -251,69 +265,176 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
             else:
                 avg_width = 50
             
-            # Seuil pour détecter un espace (45% de la largeur moyenne d'une lettre)
-            space_threshold = avg_width * 0.45
+            if debug:
+                logger.debug(f"Détection espaces: Width moyenne={avg_width:.1f}")
+                logger.debug("=== UTILISATION DU NOUVEAU COMPARATEUR D'ESPACES ===")
+            
+            # Utiliser le nouveau comparateur d'espaces
+            space_comparator = SpaceComparator(debug=debug)
+            detected_text, space_stats = space_comparator.compare_and_correct_spaces(
+                reference_text=reference_text,
+                detected_text_without_spaces=detected_text_without_spaces,
+                letter_rects=valid_rects_final,
+                avg_width=avg_width,
+                space_threshold_ratio=0.45,
+                image=image  # Passer l'image pour le raffinement des rectangles
+            )
             
             if debug:
-                logger.debug(f"Détection espaces: Width moyenne={avg_width:.1f}, Seuil={space_threshold:.1f}")
+                logger.debug(f"Texte détecté final (avec espaces corrigés): {detected_text}")
+                logger.debug(f"Statistiques espaces (SpaceComparator): {space_stats}")
             
-            for i, rect in enumerate(valid_rects_final):
-                # Ajouter la lettre
-                letter = ''
-                if isinstance(rect, RectangleWithLine) and rect.detected_letter:
-                    letter = rect.detected_letter
-                elif i < len(valid_codes):
-                    letter = letter_code_to_hebrew(valid_codes[i]) if valid_codes[i] != 27 else ''
-                
-                detected_text += letter
-                
-                # Vérifier s'il faut ajouter un espace après cette lettre
-                if i < len(valid_rects_final) - 1:
-                    current_rect = valid_rects_final[i]
-                    next_rect = valid_rects_final[i+1]
-                    
-                    same_line = False
-                    if isinstance(current_rect, RectangleWithLine) and isinstance(next_rect, RectangleWithLine):
-                        same_line = current_rect.line_number == next_rect.line_number
-                    else:
-                        same_line = _in_same_line(current_rect, next_rect, avg_width)
-                    
-                    if same_line:
-                        # Calculer l'écart horizontal
-                        # En hébreu (droite à gauche), current est à droite, next est à gauche
-                        c_x = current_rect.x if isinstance(current_rect, RectangleWithLine) else current_rect[0]
-                        n_x = next_rect.x if isinstance(next_rect, RectangleWithLine) else next_rect[0]
-                        n_w = next_rect.w if isinstance(next_rect, RectangleWithLine) else next_rect[2]
-                        
-                        # L'espace est entre le début X de next+width et le début X de current
-                        gap = c_x - (n_x + n_w)
-                        
-                        # CORRECTION LAMED : Si current_rect est un Lamed, sa "tête" peut réduire artificiellement le gap
-                        # On vérifie si la lettre est un Lamed (code hébreu ou caractère)
-                        is_lamed = False
-                        if isinstance(current_rect, RectangleWithLine) and current_rect.detected_letter == 'ל':
-                            is_lamed = True
-                        elif i < len(valid_codes) and letter_code_to_hebrew(valid_codes[i]) == 'ל':
-                            is_lamed = True
-                            
-                        gap_adjusted = gap
-                        if is_lamed:
-                            # On ajoute un bonus au gap car le Lamed a une tête qui dépasse à gauche
-                            # On ajoute environ 30% de la largeur moyenne pour compenser
-                            gap_adjusted += avg_width * 0.3
-                        
-                        if gap_adjusted > space_threshold:
-                            detected_text += ' '
-                            if debug:
-                                logger.debug(f"  Espace détecté après {letter} (gap={gap:.1f}, adj={gap_adjusted:.1f} > {space_threshold:.1f})")
-                        elif debug and gap_adjusted > space_threshold * 0.5:
-                             logger.debug(f"  Pas d'espace après {letter} (gap={gap:.1f}, adj={gap_adjusted:.1f} <= {space_threshold:.1f})")
-                    else:
-                        # Changement de ligne : ajouter un espace
-                        detected_text += ' '
+            # ========== LOGS DÉTAILLÉS COMPARAISON ESPACES ==========
+            logger.info("=" * 80)
+            logger.info("=== COMPARAISON DÉTAILLÉE DES ESPACES (NOUVEAU ALGORITHME) ===")
+            logger.info("=" * 80)
+            logger.info(f"Espaces géométriques détectés: {space_stats['geometric_spaces']}")
+            logger.info(f"Espaces attendus (référence): {space_stats['expected_spaces']}")
+            logger.info(f"Espaces finaux: {space_stats['final_spaces']}")
+            logger.info(f"Résultats: Correct={space_stats['correct']}, Manquant={space_stats['missing']}, En trop={space_stats['extra']}")
+            logger.info(f"Précision: {space_stats['precision']:.1f}%")
+            logger.info("=" * 80)
             
-            if debug:
-                logger.debug(f"Texte détecté final: {detected_text}")
+            # ========== LOGS DÉTAILLÉS COMPARAISON ESPACES (ANCIEN FORMAT) ==========
+            logger.info("=" * 80)
+            logger.info("=== COMPARAISON DÉTAILLÉE DES ESPACES ===")
+            logger.info("=" * 80)
+            
+            # Extraire les positions des espaces dans le texte détecté
+            detected_spaces = []
+            for pos, char in enumerate(detected_text):
+                if char == ' ':
+                    detected_spaces.append(pos)
+            
+            # Extraire les positions des espaces dans le texte de référence
+            reference_spaces = []
+            for pos, char in enumerate(reference_text):
+                if char == ' ':
+                    reference_spaces.append(pos)
+            
+            logger.info(f"ESPACES DÉTECTÉS: {len(detected_spaces)} espaces aux positions: {detected_spaces}")
+            logger.info(f"ESPACES RÉFÉRENCE: {len(reference_spaces)} espaces aux positions: {reference_spaces}")
+            
+            # Créer des représentations avec marqueurs d'espaces pour visualisation
+            def mark_spaces(text, space_positions):
+                """Marque les espaces dans le texte pour le log"""
+                result = []
+                for i, char in enumerate(text):
+                    if i in space_positions:
+                        result.append('_')
+                    else:
+                        result.append(char)
+                return ''.join(result)
+            
+            # Afficher les textes avec marqueurs d'espaces (premiers 200 caractères)
+            max_display = 200
+            ref_display = reference_text[:max_display] if len(reference_text) <= max_display else reference_text[:max_display] + "..."
+            det_display = detected_text[:max_display] if len(detected_text) <= max_display else detected_text[:max_display] + "..."
+            
+            ref_marked = mark_spaces(ref_display, [p for p in reference_spaces if p < max_display])
+            det_marked = mark_spaces(det_display, [p for p in detected_spaces if p < max_display])
+            
+            logger.info(f"RÉFÉRENCE (premiers {min(max_display, len(reference_text))} chars): {ref_marked}")
+            logger.info(f"DÉTECTÉ (premiers {min(max_display, len(detected_text))} chars): {det_marked}")
+            
+            # Comparaison détaillée : espaces corrects, manquants, en trop
+            # On compare en alignant les lettres (sans espaces) pour trouver les correspondances
+            ref_chars_only = reference_text.replace(' ', '')
+            det_chars_only = detected_text.replace(' ', '')
+            
+            # Utiliser diff_match_patch pour aligner les lettres
+            dmp_temp = dmp_module.diff_match_patch()
+            char_diff = dmp_temp.diff_main(ref_chars_only, det_chars_only)
+            dmp_temp.diff_cleanupSemantic(char_diff)
+            
+            # Reconstruire les positions d'espaces dans les versions sans espaces
+            # En parcourant le diff, on peut mapper les positions d'espaces
+            ref_char_to_space_map = {}  # position dans ref_chars_only -> position dans reference_text
+            det_char_to_space_map = {}  # position dans det_chars_only -> position dans detected_text
+            
+            ref_char_pos = 0
+            for i, char in enumerate(reference_text):
+                if char != ' ':
+                    ref_char_to_space_map[ref_char_pos] = i
+                    ref_char_pos += 1
+            
+            det_char_pos = 0
+            for i, char in enumerate(detected_text):
+                if char != ' ':
+                    det_char_to_space_map[det_char_pos] = i
+                    det_char_pos += 1
+            
+            # Analyser les espaces par rapport à l'alignement des lettres
+            correct_spaces = []
+            missing_spaces = []
+            extra_spaces = []
+            
+            # Parcourir le texte de référence et vérifier chaque espace
+            ref_char_idx = 0
+            for ref_space_pos in reference_spaces:
+                # Trouver la position de la lettre avant cet espace dans ref_chars_only
+                # L'espace est après la lettre à la position ref_space_pos - 1 dans reference_text
+                if ref_space_pos > 0:
+                    # Trouver combien de lettres non-espaces il y a avant ref_space_pos
+                    letters_before = sum(1 for i in range(ref_space_pos) if reference_text[i] != ' ')
+                    if letters_before > 0:
+                        ref_char_before_space = letters_before - 1
+                        # Vérifier si dans detected_text, il y a un espace après la lettre correspondante
+                        if ref_char_before_space in det_char_to_space_map:
+                            det_char_pos = det_char_to_space_map[ref_char_before_space]
+                            # L'espace devrait être à det_char_pos + 1 dans detected_text
+                            if det_char_pos + 1 < len(detected_text) and detected_text[det_char_pos + 1] == ' ':
+                                correct_spaces.append((ref_space_pos, det_char_pos + 1))
+                            else:
+                                missing_spaces.append(ref_space_pos)
+                        else:
+                            missing_spaces.append(ref_space_pos)
+                    else:
+                        missing_spaces.append(ref_space_pos)
+                else:
+                    missing_spaces.append(ref_space_pos)
+            
+            # Parcourir le texte détecté et trouver les espaces en trop
+            det_char_idx = 0
+            for det_space_pos in detected_spaces:
+                # Vérifier si cet espace correspond à un espace dans la référence
+                is_correct = False
+                for (ref_pos, det_pos) in correct_spaces:
+                    if det_pos == det_space_pos:
+                        is_correct = True
+                        break
+                if not is_correct:
+                    extra_spaces.append(det_space_pos)
+            
+            logger.info("")
+            logger.info("--- RÉSULTATS COMPARAISON ESPACES ---")
+            logger.info(f"ESPACES CORRECTS: {len(correct_spaces)}")
+            for ref_pos, det_pos in correct_spaces[:10]:  # Limiter à 10 pour ne pas surcharger
+                ref_context = reference_text[max(0, ref_pos-5):min(len(reference_text), ref_pos+5)]
+                det_context = detected_text[max(0, det_pos-5):min(len(detected_text), det_pos+5)]
+                logger.info(f"  ✓ Ref[{ref_pos}]: '{ref_context}' <-> Det[{det_pos}]: '{det_context}'")
+            if len(correct_spaces) > 10:
+                logger.info(f"  ... et {len(correct_spaces) - 10} autres espaces corrects")
+            
+            logger.info(f"ESPACES MANQUANTS: {len(missing_spaces)}")
+            for ref_pos in missing_spaces[:10]:
+                context = reference_text[max(0, ref_pos-5):min(len(reference_text), ref_pos+5)]
+                logger.info(f"  ✗ Manquant à Ref[{ref_pos}]: '{context}'")
+            if len(missing_spaces) > 10:
+                logger.info(f"  ... et {len(missing_spaces) - 10} autres espaces manquants")
+            
+            logger.info(f"ESPACES EN TROP: {len(extra_spaces)}")
+            for det_pos in extra_spaces[:10]:
+                context = detected_text[max(0, det_pos-5):min(len(detected_text), det_pos+5)]
+                logger.info(f"  + En trop à Det[{det_pos}]: '{context}'")
+            if len(extra_spaces) > 10:
+                logger.info(f"  ... et {len(extra_spaces) - 10} autres espaces en trop")
+            
+            logger.info("")
+            logger.info(f"STATISTIQUES: Correct={len(correct_spaces)}, Manquant={len(missing_spaces)}, En trop={len(extra_spaces)}")
+            logger.info(f"PRÉCISION ESPACES: {len(correct_spaces) / len(reference_spaces) * 100:.1f}%" if len(reference_spaces) > 0 else "PRÉCISION ESPACES: N/A (aucun espace de référence)")
+            logger.info("=" * 80)
+            # ========== FIN LOGS DÉTAILLÉS COMPARAISON ESPACES ==========
             
             # Mettre à jour les couleurs des rectangles en fonction des différences (avec espaces)
             dmp = dmp_module.diff_match_patch()
@@ -421,6 +542,34 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                         
                         for char_idx, char in enumerate(added_text):
                             if char == ' ':
+                                # Espace en trop dans le détecté (manque dans la référence)
+                                # Créer une erreur d'espace manquant
+                                if rect_idx > 0 and rect_idx <= len(valid_rects_final):
+                                    # Positionner le marqueur entre les lettres
+                                    if rect_idx > 0:
+                                        x1, y1, w1, h1 = valid_rects_final[rect_idx - 1]
+                                        if rect_idx < len(valid_rects_final):
+                                            x2, y2, w2, h2 = valid_rects_final[rect_idx]
+                                            marker_x = (x1 + w1 + x2) // 2
+                                            marker_y = min(y1, y2) + max(h1, h2) // 2
+                                            marker_w = 20
+                                            marker_h = max(h1, h2)
+                                            marker_position = (marker_x - marker_w // 2, marker_y, marker_w, marker_h)
+                                        else:
+                                            spacing = max(20, int(avg_width * 0.5))
+                                            marker_x = max(0, x1 - spacing)
+                                            marker_position = (marker_x, y1, 20, h1)
+                                    else:
+                                        marker_position = (10, 10, 20, 30)
+                                    
+                                    differences_info.append({
+                                        'type': 'missing',
+                                        'text': ' ',  # Espace manquant
+                                        'position': rect_idx,
+                                        'context_before': context_before,
+                                        'context_after': context_after,
+                                        'marker_position': marker_position
+                                    })
                                 current_det_pos += 1
                                 continue
                             
@@ -455,7 +604,8 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                         text_without_spaces = text.replace(' ', '')
                         
                         marker_position = None
-                        if len(text_without_spaces) > 0:
+                        # Traiter aussi les espaces manquants
+                        if len(text_without_spaces) > 0 or text.strip() == '':
                             # Calculer la position du marqueur une seule fois pour le groupe
                             is_end_of_line = False
                             is_start_of_line = False
@@ -507,27 +657,82 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                                 else:
                                     marker_position = (10, 10, 20, 30)
                             
-                            if marker_position:
+                            if marker_position and text.strip() != '':
                                 mx, my, mw, mh = marker_position
                                 cv2.line(result_image, (mx, my), (mx + mw, my + mh), (0, 0, 255), 3)
                                 cv2.line(result_image, (mx + mw, my), (mx, my + mh), (0, 0, 255), 3)
                                 cv2.rectangle(result_image, (mx - 5, my - 5), (mx + mw + 5, my + mh + 5), (0, 0, 255), 2)
                         
                         # Ajouter une seule erreur 'missing' pour tout le bloc
-                        differences_info.append({
-                            'type': 'missing',
-                            'text': text,
-                            'position': rect_idx,
-                            'context_before': context_before,
-                            'context_after': context_after,
-                            'marker_position': marker_position
-                        })
+                        # Si c'est uniquement des espaces, créer quand même l'erreur
+                        if text.strip() == '' and len(text) > 0:
+                            # Uniquement des espaces manquants
+                            if marker_position is None:
+                                # Calculer une position par défaut
+                                if rect_idx > 0 and len(valid_rects_final) > 0:
+                                    x, y, w, h = valid_rects_final[rect_idx - 1]
+                                    spacing = max(20, int(avg_width * 0.5))
+                                    marker_x = max(0, x - spacing)
+                                    marker_position = (marker_x, y, 20, h)
+                                else:
+                                    marker_position = (10, 10, 20, 30)
+                            
+                            differences_info.append({
+                                'type': 'missing',
+                                'text': ' ',  # Espace manquant
+                                'position': rect_idx,
+                                'context_before': context_before,
+                                'context_after': context_after,
+                                'marker_position': marker_position
+                            })
+                        else:
+                            differences_info.append({
+                                'type': 'missing',
+                                'text': text,
+                                'position': rect_idx,
+                                'context_before': context_before,
+                                'context_after': context_after,
+                                'marker_position': marker_position
+                            })
                         
                         i += 1
                 
                 elif op == 1:  # En trop
                     for char in text:
                         if char == ' ':
+                            # Espace en trop dans le détecté
+                            # Créer une erreur d'espace en trop
+                            if rect_idx > 0 and rect_idx <= len(valid_rects_final):
+                                # Positionner le marqueur entre les lettres
+                                if rect_idx > 0:
+                                    x1, y1, w1, h1 = valid_rects_final[rect_idx - 1]
+                                    if rect_idx < len(valid_rects_final):
+                                        x2, y2, w2, h2 = valid_rects_final[rect_idx]
+                                        marker_x = (x1 + w1 + x2) // 2
+                                        marker_y = min(y1, y2) + max(h1, h2) // 2
+                                        marker_w = 20
+                                        marker_h = max(h1, h2)
+                                        marker_position = (marker_x - marker_w // 2, marker_y, marker_w, marker_h)
+                                    else:
+                                        spacing = max(20, int(avg_width * 0.5))
+                                        marker_x = max(0, x1 - spacing)
+                                        marker_position = (marker_x, y1, 20, h1)
+                                else:
+                                    marker_position = (10, 10, 20, 30)
+                                
+                                start_idx = max(0, current_det_pos - 10)
+                                context_before = detected_text[start_idx:current_det_pos]
+                                end_idx = min(len(detected_text), current_det_pos + 1 + 10)
+                                context_after = detected_text[current_det_pos + 1:end_idx]
+                                
+                                differences_info.append({
+                                    'type': 'extra',
+                                    'text': ' ',  # Espace en trop
+                                    'position': rect_idx,
+                                    'context_before': context_before,
+                                    'context_after': context_after,
+                                    'marker_position': marker_position
+                                })
                             current_det_pos += 1
                             continue
                         
@@ -587,6 +792,22 @@ def detect_letters(image, weight_file=None, overflow_dir=None, debug=False):
                 
                 if coverage_ratio < 0.90 or last_chars_reference not in detected_normalized:
                     paracha_status = "incomplete"
+                    
+                    # Si incomplète, retirer les erreurs 'missing' qui sont à la toute fin
+                    # car elles sont dues à la coupure de l'image, pas à une erreur du sofer
+                    removed_count = 0
+                    while differences_info and differences_info[-1]['type'] == 'missing':
+                        differences_info.pop()
+                        removed_count += 1
+                    
+                    if removed_count > 0 and logger:
+                        logger.info(f"Paracha incomplète : {removed_count} erreurs 'missing' finales retirées du rapport.")
+    
+    # Recalculer les comptes après filtrage éventuel
+    missing_count = len([d for d in differences_info if d.get('type') == 'missing'])
+    extra_count = len([d for d in differences_info if d.get('type') == 'extra'])
+    wrong_count = len([d for d in differences_info if d.get('type') == 'wrong'])
+    has_errors = (missing_count + extra_count + wrong_count) > 0
     
     return (
         image_base64,

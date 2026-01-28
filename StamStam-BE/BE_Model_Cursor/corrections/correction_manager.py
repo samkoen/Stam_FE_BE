@@ -8,6 +8,7 @@ from BE_Model_Cursor.corrections.height_extension_correction import HeightExtens
 from BE_Model_Cursor.corrections.fusion_correction import FusionCorrection
 from BE_Model_Cursor.corrections.reunification_correction import ReunificationCorrection
 from BE_Model_Cursor.corrections.missing_letter_correction import MissingLetterCorrection
+from BE_Model_Cursor.corrections.split_substitution_correction import SplitSubstitutionCorrection
 from BE_Model_Cursor.utils.logger import get_logger
 from BE_Model_Cursor.models.letter_predictor import letter_code_to_hebrew
 
@@ -38,6 +39,7 @@ class CorrectionManager:
         self.fusion = FusionCorrection(image, weight_file)
         self.reunification = ReunificationCorrection(image, weight_file)
         self.missing_letter = MissingLetterCorrection(image, weight_file)
+        self.split_substitution = SplitSubstitutionCorrection(image, weight_file)
         self.logger = get_logger(__name__)
     
     def try_correct_error(self, rect_idx: int, valid_rects_final: List[Tuple[int, int, int, int]],
@@ -127,7 +129,28 @@ class CorrectionManager:
         # CAS 3: 1 rectangle détecté au lieu de N lettres attendues (Substitution 1->N)
         # Exemple: 1 rectangle contient "של" collés, attendu "של" (2 lettres)
         if len(expected_char) > 1 and detected_char and detected_char != '':
-            self.logger.debug(f"[CorrectionManager] CAS 3: 1 rectangle '{detected_char}' au lieu de '{expected_char}' → Tentative de réunification multiple")
+            self.logger.debug(f"[CorrectionManager] CAS 3: 1 rectangle '{detected_char}' au lieu de '{expected_char}'")
+            
+            # 3.1 Essayer de diviser le rectangle (SplitSubstitutionCorrection)
+            self.logger.debug(f"  → Tentative de SplitSubstitutionCorrection (diviser le rectangle)...")
+            try:
+                result = self.split_substitution.try_correct(
+                    rect_idx=rect_idx,
+                    valid_rects_final=valid_rects_final,
+                    valid_codes=valid_codes,
+                    expected_char=expected_char,
+                    detected_char=detected_char,
+                    reference_text=reference_text,
+                    detected_text=detected_text
+                )
+                if result.success:
+                    self.logger.debug(f"  ✓ SUCCÈS: SplitSubstitutionCorrection a trouvé '{result.metadata.get('predicted', 'Unknown')}'")
+                    return result
+            except Exception as e:
+                self.logger.error(f"Erreur dans SplitSubstitutionCorrection: {e}")
+
+            # 3.2 Tentative de réunification multiple (ReunificationCorrection)
+            self.logger.debug(f"  → Tentative de réunification multiple...")
             try:
                 result = self.reunification.try_correct(
                     rect_idx=rect_idx,
@@ -148,6 +171,7 @@ class CorrectionManager:
                         self.logger.debug(f"[CorrectionManager] Reunification multiple donne '{detected_str}' mais attendu '{expected_char}' → rejetée")
             except Exception as e:
                 self.logger.error(f"Erreur dans ReunificationCorrection (Multiple): {e}")
+
 
         # CAS 2: 1 rectangle détecté au lieu d'1 lettre attendue → Solution simple puis Réunification
         if len(expected_char) == 1 and (detected_chars is None or len(detected_chars) == 1):
