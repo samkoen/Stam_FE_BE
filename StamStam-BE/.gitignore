@@ -3,7 +3,7 @@ db.sqlite3
 *.pyc
 migrations/
 .idea
-requirements.txt
+# requirements.txt - On veut généralement garder requirements.txt versionné
 overflow/
 figure/
 all_letters/
@@ -14,3 +14,27 @@ logs/
 .env.local
 .env.production
 /user_storage
+
+# Ignorer toutes les images de parchemins et tests
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+
+# Ignorer les dossiers d'images spécifiques
+images/
+tests/test_images/
+tests/regression_test_images/
+BE_Model_Cursor/tests/test_images/
+BE_Model_Cursor/tests/regression_test_images/
+
+# Ignorer aussi les dossiers de données si vous en avez
+data/
+uploads/
+temp/
+
+# Ignorer les fichiers de configuration locale
+__pycache__/
+.idea/
+.cursor/
