@@ -6,7 +6,7 @@
 const isProduction = !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1');
 
 // URL par défaut si la variable d'env manque (A REMPLACER PAR VOTRE VRAIE URL HF si nécessaire)
-const FALLBACK_PROD_URL = 'https://samkoen-stamstam.hf.space'; 
+const FALLBACK_PROD_URL = 'https://samkoen-stam-be.hf.space';
 
 let apiBaseUrl = import.meta.env.VITE_API_URL;
 
