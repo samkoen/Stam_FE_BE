@@ -28,6 +28,7 @@ logs/
 **/tests/regression_test_images/
 **/BE_Model_Cursor/tests/test_images/
 **/BE_Model_Cursor/tests/regression_test_images/
+**/user_storage/
 
 # Ignorer aussi les dossiers de données si vous en avez
 data/

@@ -1,8 +1,33 @@
 /**
  * Configuration de l'application
  */
-// URL de base de l'API (depuis variable d'env VITE_API_URL ou défaut localhost)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// Détection de l'environnement
+const isProduction = !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1');
+
+// URL par défaut si la variable d'env manque (A REMPLACER PAR VOTRE VRAIE URL HF si nécessaire)
+const FALLBACK_PROD_URL = 'https://samkoen-stamstam.hf.space'; 
+
+let apiBaseUrl = import.meta.env.VITE_API_URL;
+
+// Debug log pour voir ce qui se passe en prod
+console.log('Environment config:', {
+    mode: import.meta.env.MODE,
+    viteApiUrl: apiBaseUrl,
+    isProduction: isProduction,
+    hostname: window.location.hostname
+});
+
+if (!apiBaseUrl) {
+    if (isProduction) {
+        console.warn('⚠️ VITE_API_URL non définie en production. Utilisation du fallback:', FALLBACK_PROD_URL);
+        apiBaseUrl = FALLBACK_PROD_URL;
+    } else {
+        apiBaseUrl = 'http://localhost:8000';
+    }
+}
+
+const API_BASE_URL = apiBaseUrl;
 
 export const config = {
     // URL de l'API backend
