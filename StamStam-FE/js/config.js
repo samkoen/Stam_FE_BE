@@ -28,6 +28,8 @@ if (!apiBaseUrl) {
 }
 
 const API_BASE_URL = apiBaseUrl;
+// FORCE PROD URL POUR TEST
+const API_BASE_URL = 'https://samkoen-stam-be.hf.space';
 
 export const config = {
     // URL de l'API backend
