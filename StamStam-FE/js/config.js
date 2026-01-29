@@ -27,7 +27,7 @@ if (!apiBaseUrl) {
     }
 }
 
-const API_BASE_URL = apiBaseUrl;
+//const API_BASE_URL = apiBaseUrl;
 // FORCE PROD URL POUR TEST
 const API_BASE_URL = 'https://samkoen-stam-be.hf.space';
 
