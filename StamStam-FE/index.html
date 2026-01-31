@@ -24,18 +24,60 @@
 
         <main class="app-main">
             <div class="main-layout">
-                <!-- Colonne gauche : Upload et contrôles -->
-                <div class="left-panel">
-                    <section class="upload-section" id="uploadSection">
-                        <div class="upload-area" id="uploadArea">
-                            <div class="upload-content">
-                                <div class="upload-icon">📄</div>
-                                <h2 class="upload-title">בחר תמונה</h2>
-                                <input type="file" id="fileInput" accept="image/*" class="file-input">
-                            </div>
-                            <div class="file-info" id="fileInfo"></div>
+                <!-- Panneau gauche : Image -->
+                <div class="left-image-panel" id="leftImagePanel">
+                    <div class="panel-header">
+                        <div class="header-left">
+                            <button class="btn-upload-small" id="uploadBtnSmall" title="בחר תמונה">
+                                <span class="upload-icon-small">📄</span>
+                                <span class="upload-text-small">בחר תמונה</span>
+                            </button>
+                            <input type="file" id="fileInput" accept="image/*" class="file-input">
+                            <div class="file-info-small" id="fileInfoSmall"></div>
                         </div>
+                        <div class="header-right">
+                            <h2 class="panel-title" id="panelTitleLeft">תמונה</h2>
+                            <div class="panel-actions">
+                                <button class="btn-icon" id="cropBtn" title="חתוך תמונה" style="display: none;">
+                                    ✂️
+                                </button>
+                                <button class="btn-icon" id="applyCropBtn" title="החל חיתוך" style="display: none;">
+                                    ✓
+                                </button>
+                                <button class="btn-icon" id="acceptCropBtn" title="אשר חיתוך" style="display: none;">
+                                    ✓
+                                </button>
+                                <button class="btn-icon" id="cancelCropBtn" title="בטל חיתוך" style="display: none;">
+                                    ✕
+                                </button>
+                                <button class="btn-icon" id="zoomOutBtn" title="הקטן" style="display: none;">
+                                    ➖
+                                </button>
+                                <button class="btn-icon" id="zoomInBtn" title="הגדל" style="display: none;">
+                                    ➕
+                                </button>
+                                <button class="btn-icon" id="resetZoomBtn" title="איפוס זום" style="display: none;">
+                                    🔍
+                                </button>
+                                <button class="btn-icon" id="downloadBtn" title="הורד תמונה" style="display: none;">
+                                    💾
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
+                    <div class="image-viewer" id="imageViewer">
+                        <div class="image-placeholder">
+                            <div class="placeholder-icon">🖼️</div>
+                            <p class="placeholder-text">לא נבחרה תמונה</p>
+                            <p class="placeholder-hint">בחר תמונה למעלה כדי להתחיל</p>
+                        </div>
+                        <div class="image-zoom-container" id="imageZoomContainer" style="display: none;">
+                            <img id="displayImage" class="display-image" alt="Image">
+                        </div>
+                    </div>
+
+                    <div class="panel-footer-left">
                         <div class="action-buttons">
                             <button class="btn btn-success" id="detectLettersBtn" disabled>
                                 <span class="btn-text">זהה אותיות</span>
@@ -48,7 +90,7 @@
                         <div class="crop-controls" id="cropControls" style="display: none;">
                             <p class="crop-hint">התאם את אזור הבחירה על ידי הזזת המלבן או שינוי גודל עם הידיות</p>
                         </div>
-                    </section>
+                    </div>
 
                     <!-- État de chargement -->
                     <section class="loading-section" id="loadingSection">
@@ -68,50 +110,13 @@
                     </section>
                 </div>
 
-                <!-- Colonne droite : Affichage de l'image -->
-                <div class="right-panel" id="rightPanel">
-                    <div class="panel-header">
-                        <h2 class="panel-title" id="panelTitle">תצוגה מקדימה</h2>
-                        <div class="panel-actions">
-                            <button class="btn-icon" id="cropBtn" title="חתוך תמונה" style="display: none;">
-                                ✂️
-                            </button>
-                            <button class="btn-icon" id="applyCropBtn" title="החל חיתוך" style="display: none;">
-                                ✓
-                            </button>
-                            <button class="btn-icon" id="acceptCropBtn" title="אשר חיתוך" style="display: none;">
-                                ✓
-                            </button>
-                            <button class="btn-icon" id="cancelCropBtn" title="בטל חיתוך" style="display: none;">
-                                ✕
-                            </button>
-                            <button class="btn-icon" id="zoomOutBtn" title="הקטן" style="display: none;">
-                                ➖
-                            </button>
-                            <button class="btn-icon" id="zoomInBtn" title="הגדל" style="display: none;">
-                                ➕
-                            </button>
-                            <button class="btn-icon" id="resetZoomBtn" title="איפוס זום" style="display: none;">
-                                🔍
-                            </button>
-                            <button class="btn-icon" id="expandBtn" title="הגדל/הקטן">
-                                ⛶
-                            </button>
-                            <button class="btn-icon" id="downloadBtn" title="הורד תמונה" style="display: none;">
-                                💾
-                            </button>
-                        </div>
-                    </div>
+                <!-- Resizer -->
+                <div class="panel-resizer" id="panelResizer"></div>
 
-                    <div class="image-viewer" id="imageViewer">
-                        <div class="image-placeholder">
-                            <div class="placeholder-icon">🖼️</div>
-                            <p class="placeholder-text">לא נבחרה תמונה</p>
-                            <p class="placeholder-hint">בחר תמונה מימין כדי להתחיל</p>
-                        </div>
-                        <div class="image-zoom-container" id="imageZoomContainer" style="display: none;">
-                            <img id="displayImage" class="display-image" alt="Image">
-                        </div>
+                <!-- Panneau droit : Résultats -->
+                <div class="right-results-panel" id="rightResultsPanel">
+                    <div class="panel-header">
+                        <h2 class="panel-title" id="panelTitleRight">תוצאות</h2>
                     </div>
 
                     <div class="panel-content-scrollable" id="panelContentScrollable">

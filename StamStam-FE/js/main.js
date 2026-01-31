@@ -33,37 +33,80 @@ class App {
      */
     init() {
         this.setupEventListeners();
+        this.initializePanelSizes();
+    }
+
+    /**
+     * Initialise les tailles des panneaux au démarrage
+     */
+    initializePanelSizes() {
+        const leftPanel = this.ui.elements.leftPanel;
+        const rightPanel = this.ui.elements.rightPanel;
+        const resizer = this.ui.elements.panelResizer;
+        
+        if (!leftPanel || !rightPanel || !resizer) return;
+
+        // Réinitialiser les styles pour utiliser les valeurs par défaut
+        leftPanel.style.flex = '';
+        leftPanel.style.flexBasis = '';
+        rightPanel.style.flex = '';
+        rightPanel.style.flexBasis = '';
     }
 
     /**
      * Configure les écouteurs d'événements
      */
     setupEventListeners() {
-        // Upload area - clic
-        this.ui.elements.uploadArea.addEventListener('click', () => {
-            this.ui.elements.fileInput.click();
-        });
+        // Nouveau bouton d'upload petit
+        if (this.ui.elements.uploadBtnSmall) {
+            this.ui.elements.uploadBtnSmall.addEventListener('click', () => {
+                this.ui.elements.fileInput.click();
+            });
+        }
+
+        // Upload area - clic (si existe encore)
+        if (this.ui.elements.uploadArea) {
+            this.ui.elements.uploadArea.addEventListener('click', () => {
+                this.ui.elements.fileInput.click();
+            });
+
+            // Drag and drop
+            this.ui.elements.uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                this.ui.setDragOver(true);
+            });
+
+            this.ui.elements.uploadArea.addEventListener('dragleave', () => {
+                this.ui.setDragOver(false);
+            });
+
+            this.ui.elements.uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                this.ui.setDragOver(false);
+                this.handleFileSelect(e.dataTransfer.files[0]);
+            });
+        }
 
         // File input - changement
         this.ui.elements.fileInput.addEventListener('change', (e) => {
             this.handleFileSelect(e.target.files[0]);
         });
 
-        // Drag and drop
-        this.ui.elements.uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            this.ui.setDragOver(true);
-        });
+        // Drag and drop sur le panneau d'image
+        if (this.ui.elements.leftPanel) {
+            this.ui.elements.leftPanel.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
 
-        this.ui.elements.uploadArea.addEventListener('dragleave', () => {
-            this.ui.setDragOver(false);
-        });
-
-        this.ui.elements.uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            this.ui.setDragOver(false);
-            this.handleFileSelect(e.dataTransfer.files[0]);
-        });
+            this.ui.elements.leftPanel.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    this.handleFileSelect(e.dataTransfer.files[0]);
+                }
+            });
+        }
 
         // Bouton de détection de lettres
         this.ui.elements.detectLettersBtn.addEventListener('click', () => {
@@ -99,10 +142,12 @@ class App {
             this.downloadResult();
         });
 
-        // Bouton d'agrandissement
-        this.ui.elements.expandBtn.addEventListener('click', () => {
-            this.ui.toggleExpand();
-        });
+        // Bouton d'agrandissement (si existe)
+        if (this.ui.elements.expandBtn) {
+            this.ui.elements.expandBtn.addEventListener('click', () => {
+                this.ui.toggleExpand();
+            });
+        }
 
         // Bouton de crop
         this.ui.elements.cropBtn.addEventListener('click', () => {
@@ -152,6 +197,120 @@ class App {
         // Gestion du chargement de l'image pour appliquer le zoom
         this.ui.elements.displayImage.addEventListener('load', () => {
             this.ui.applyZoom();
+        });
+
+        // Système de redimensionnement des panneaux
+        this.setupPanelResizer();
+    }
+
+    /**
+     * Configure le système de redimensionnement des panneaux
+     */
+    setupPanelResizer() {
+        const resizer = this.ui.elements.panelResizer;
+        const leftPanel = this.ui.elements.leftPanel;
+        const rightPanel = this.ui.elements.rightPanel;
+        
+        if (!resizer || !leftPanel || !rightPanel) return;
+
+        let isResizing = false;
+        let startX = 0;
+        let startY = 0;
+        let startLeftPercent = 0;
+        let isVertical = false;
+
+        const checkLayout = () => {
+            const container = leftPanel.parentElement;
+            const computedStyle = window.getComputedStyle(container);
+            isVertical = computedStyle.flexDirection === 'column';
+        };
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            resizer.classList.add('resizing');
+            startX = e.clientX;
+            startY = e.clientY;
+            checkLayout();
+            
+            const container = leftPanel.parentElement;
+            if (isVertical) {
+                const containerHeight = container.offsetHeight;
+                const resizerHeight = resizer.offsetHeight;
+                const availableHeight = containerHeight - resizerHeight;
+                startLeftPercent = (leftPanel.offsetHeight / availableHeight) * 100;
+                document.body.style.cursor = 'row-resize';
+            } else {
+                const containerWidth = container.offsetWidth;
+                const resizerWidth = resizer.offsetWidth;
+                const availableWidth = containerWidth - resizerWidth;
+                startLeftPercent = (leftPanel.offsetWidth / availableWidth) * 100;
+                document.body.style.cursor = 'col-resize';
+            }
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+
+            const container = leftPanel.parentElement;
+            let delta = 0;
+            let containerSize = 0;
+            const resizerSize = isVertical ? resizer.offsetHeight : resizer.offsetWidth;
+
+            if (isVertical) {
+                delta = e.clientY - startY;
+                containerSize = container.offsetHeight;
+            } else {
+                delta = e.clientX - startX;
+                containerSize = container.offsetWidth;
+            }
+
+            const availableSize = containerSize - resizerSize;
+
+            // Calculer la nouvelle taille en pixels pour plus de précision
+            // En RTL, inverser le delta pour que tirer vers la droite agrandisse le panneau de droite
+            let newLeftSize = 0;
+            
+            if (isVertical) {
+                const startLeftSize = (startLeftPercent / 100) * availableSize;
+                newLeftSize = startLeftSize - delta;
+            } else {
+                const startLeftSize = (startLeftPercent / 100) * availableSize;
+                newLeftSize = startLeftSize - delta;
+            }
+
+            // Limites minimales et maximales
+            const minSize = 300;
+            const maxSize = availableSize - minSize;
+
+            if (newLeftSize < minSize) {
+                newLeftSize = minSize;
+            } else if (newLeftSize > maxSize) {
+                newLeftSize = maxSize;
+            }
+
+            const newRightSize = availableSize - newLeftSize;
+
+            // Appliquer les nouvelles tailles en pixels pour plus de précision
+            // Utiliser flex-basis au lieu de width pour éviter les conflits
+            leftPanel.style.flex = `0 0 ${newLeftSize}px`;
+            leftPanel.style.flexBasis = `${newLeftSize}px`;
+            rightPanel.style.flex = `0 0 ${newRightSize}px`;
+            rightPanel.style.flexBasis = `${newRightSize}px`;
+            
+            // Forcer le recalcul du layout
+            leftPanel.offsetHeight;
+            rightPanel.offsetHeight;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                resizer.classList.remove('resizing');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
         });
     }
 

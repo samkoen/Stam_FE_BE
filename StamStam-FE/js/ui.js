@@ -8,8 +8,10 @@ export class UIManager {
         this.elements = {
             uploadSection: document.getElementById('uploadSection'),
             uploadArea: document.getElementById('uploadArea'),
+            uploadBtnSmall: document.getElementById('uploadBtnSmall'),
             fileInput: document.getElementById('fileInput'),
             fileInfo: document.getElementById('fileInfo'),
+            fileInfoSmall: document.getElementById('fileInfoSmall'),
             detectLettersBtn: document.getElementById('detectLettersBtn'),
             cropControls: document.getElementById('cropControls'),
             applyCropBtn: document.getElementById('applyCropBtn'),
@@ -20,8 +22,10 @@ export class UIManager {
             errorSection: document.getElementById('errorSection'),
             errorMessage: document.getElementById('errorMessage'),
             errorCloseBtn: document.getElementById('errorCloseBtn'),
-            rightPanel: document.getElementById('rightPanel'),
-            panelTitle: document.getElementById('panelTitle'),
+            rightPanel: document.getElementById('rightResultsPanel'),
+            leftPanel: document.getElementById('leftImagePanel'),
+            panelTitle: document.getElementById('panelTitleRight'),
+            panelTitleLeft: document.getElementById('panelTitleLeft'),
             imageViewer: document.getElementById('imageViewer'),
             displayImage: document.getElementById('displayImage'),
             imagePlaceholder: document.querySelector('.image-placeholder'),
@@ -38,7 +42,8 @@ export class UIManager {
             resetZoomBtn: document.getElementById('resetZoomBtn'),
             differencesInfo: document.getElementById('differencesInfo'),
             showSpaceErrors: document.getElementById('showSpaceErrors'),
-            filterSpacesContainer: document.getElementById('filterSpacesContainer')
+            filterSpacesContainer: document.getElementById('filterSpacesContainer'),
+            panelResizer: document.getElementById('panelResizer')
         };
         this.isExpanded = false;
         this.zoomLevel = 1.0;
@@ -65,11 +70,19 @@ export class UIManager {
      */
     showFileInfo(file, formatFileSize) {
         const fileInfo = this.elements.fileInfo;
-        fileInfo.innerHTML = `
-            <div class="file-name">📄 ${file.name}</div>
-            <div class="file-size">גודל: ${formatFileSize(file.size)}</div>
-        `;
-        fileInfo.classList.add('active');
+        if (fileInfo) {
+            fileInfo.innerHTML = `
+                <div class="file-name">📄 ${file.name}</div>
+                <div class="file-size">גודל: ${formatFileSize(file.size)}</div>
+            `;
+            fileInfo.classList.add('active');
+        }
+        
+        // Mettre à jour aussi le petit affichage
+        const fileInfoSmall = this.elements.fileInfoSmall;
+        if (fileInfoSmall) {
+            fileInfoSmall.textContent = file.name;
+        }
     }
 
     /**
@@ -132,18 +145,27 @@ export class UIManager {
             hasRealErrors = true;
         }
 
+        // Déterminer la classe CSS du statut pour l'appliquer aussi à "ללא שגיאות"
+        let statusClass = 'info-value status-pill';
+        
         if (parachaStatusEl) {
-            if (parachaStatus === 'complete') {
-                parachaStatusEl.textContent = 'פרשה מלאה';
-                parachaStatusEl.className = 'info-value status-pill status-success';
-            } else if (parachaStatus === 'incomplete') {
-                if (hasRealErrors) {
-                    parachaStatusEl.textContent = 'פרשה חלקית (עם שגיאות)';
-                    parachaStatusEl.className = 'info-value status-pill status-error'; // Rouge/Orange pour attirer l'attention
+            // Si il y a des erreurs, afficher le message selon si complete ou incomplete
+            if (hasRealErrors) {
+                if (parachaStatus === 'complete') {
+                    parachaStatusEl.textContent = 'פרשה שלמה עם טעיות';
                 } else {
-                    parachaStatusEl.textContent = 'פרשה חלקית (תקינה)';
-                    parachaStatusEl.className = 'info-value status-pill status-info'; // Bleu pour info neutre
+                    parachaStatusEl.textContent = 'פרשה חלקית עם טעיות';
                 }
+                statusClass = 'info-value status-pill status-error'; // Rouge pour les erreurs
+                parachaStatusEl.className = statusClass;
+            } else if (parachaStatus === 'complete') {
+                parachaStatusEl.textContent = 'פרשה שלמה תקינה';
+                statusClass = 'info-value status-pill status-success'; // Vert pour complète valide
+                parachaStatusEl.className = statusClass;
+            } else if (parachaStatus === 'incomplete') {
+                parachaStatusEl.textContent = 'פרשה חלקית תקינה';
+                statusClass = 'info-value status-pill status-partial'; // Bleu distinct pour partielle valide
+                parachaStatusEl.className = statusClass;
             } else {
                 parachaStatusEl.textContent = '';
                 parachaStatusEl.className = 'info-value status-pill';
@@ -152,7 +174,7 @@ export class UIManager {
         if (errorsStatusEl) {
             if (hasErrors === false) {
                 errorsStatusEl.textContent = 'ללא שגיאות';
-                errorsStatusEl.className = 'info-value status-pill status-success';
+                errorsStatusEl.className = statusClass; // Utiliser la même couleur que le statut
             } else if (errors) {
                 const missing = errors.missing || 0;
                 const extra = errors.extra || 0;
@@ -170,8 +192,10 @@ export class UIManager {
         const successMessageEl = document.getElementById('successMessage');
         if (successMessageEl) {
             if (!differences || differences.length === 0) {
-                successMessageEl.innerHTML = '<span class="success-message">✅ התוצאה מושלמת! 100% התאמה</span>';
-                successMessageEl.style.display = 'block';
+                // Utiliser la même classe CSS que le statut pour la cohérence des couleurs
+                const statusClassForMessage = statusClass || 'info-value status-pill status-success';
+                successMessageEl.innerHTML = `<span class="${statusClassForMessage}">✅ התוצאה מושלמת! 100% התאמה</span>`;
+                successMessageEl.style.display = 'inline-block';
             } else {
                 successMessageEl.style.display = 'none';
             }
@@ -971,9 +995,13 @@ export class UIManager {
      */
     setDragOver(add) {
         if (add) {
-            this.elements.uploadArea.classList.add('dragover');
+            if (this.elements.uploadArea) {
+                this.elements.uploadArea.classList.add('dragover');
+            }
         } else {
-            this.elements.uploadArea.classList.remove('dragover');
+            if (this.elements.uploadArea) {
+                this.elements.uploadArea.classList.remove('dragover');
+            }
         }
     }
 
@@ -981,13 +1009,19 @@ export class UIManager {
      * Bascule l'état d'agrandissement du panneau de droite
      */
     toggleExpand() {
+        if (!this.elements.expandBtn) return;
+        
         this.isExpanded = !this.isExpanded;
         if (this.isExpanded) {
-            this.elements.rightPanel.classList.add('expanded');
+            if (this.elements.rightPanel) {
+                this.elements.rightPanel.classList.add('expanded');
+            }
             this.elements.expandBtn.textContent = '⛶';
             this.elements.expandBtn.title = 'Réduire';
         } else {
-            this.elements.rightPanel.classList.remove('expanded');
+            if (this.elements.rightPanel) {
+                this.elements.rightPanel.classList.remove('expanded');
+            }
             this.elements.expandBtn.textContent = '⛶';
             this.elements.expandBtn.title = 'Agrandir';
         }
@@ -997,7 +1031,12 @@ export class UIManager {
      * Réinitialise l'interface
      */
     reset() {
-        this.elements.fileInfo.classList.remove('active');
+        if (this.elements.fileInfo) {
+            this.elements.fileInfo.classList.remove('active');
+        }
+        if (this.elements.fileInfoSmall) {
+            this.elements.fileInfoSmall.textContent = '';
+        }
         this.elements.fileInput.value = '';
         this.setDetectLettersButtonEnabled(false);
         this.showLoading(false);

@@ -109,6 +109,51 @@
     font-weight: 500;
 }
 
+/* Petit bouton d'upload */
+.btn-upload-small {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius-md);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-upload-small:hover {
+    background: var(--color-primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-upload-small:active {
+    transform: translateY(0);
+}
+
+.upload-icon-small {
+    font-size: 0.9rem;
+}
+
+.upload-text-small {
+    font-size: 0.75rem;
+}
+
+.file-info-small {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-right: var(--spacing-xs);
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .upload-description {
     font-size: 1.1rem;
     color: var(--text-secondary);
@@ -154,7 +199,7 @@
     display: flex;
     gap: var(--spacing-md);
     justify-content: center;
-    margin-top: var(--spacing-xl);
+    margin-top: 0;
     flex-wrap: wrap;
 }
 
@@ -536,13 +581,38 @@
         height: auto;
     }
     
-    .left-panel {
+    .left-image-panel {
         flex: 1;
         max-width: 100%;
+        border-radius: var(--border-radius-xl) var(--border-radius-xl) 0 0;
+        height: 50vh;
+        min-height: 400px;
     }
     
-    .right-panel {
-        min-height: 500px;
+    .right-results-panel {
+        flex: 1;
+        max-width: 100%;
+        border-radius: 0 0 var(--border-radius-xl) var(--border-radius-xl);
+        height: 50vh;
+        min-height: 400px;
+    }
+
+    .panel-resizer {
+        width: 100%;
+        height: 8px;
+        cursor: row-resize;
+        border-left: none;
+        border-right: none;
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .panel-resizer::before {
+        width: 40px;
+        height: 4px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
     }
 }
 

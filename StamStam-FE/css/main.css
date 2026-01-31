@@ -169,71 +169,138 @@ body {
 
 .main-layout {
     display: flex;
-    gap: var(--spacing-lg);
+    gap: 0;
     height: calc(100vh - 150px);
     max-width: 1800px;
     margin: 0 auto;
     overflow: visible;
 }
 
-.left-panel {
-    flex: 0 0 400px;
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-    overflow-y: auto;
-    padding-right: var(--spacing-sm);
-}
-
-.right-panel {
-    flex: 1;
+.left-image-panel {
+    flex: 0 0 50%;
     display: flex;
     flex-direction: column;
     background: var(--bg-primary);
-    border-radius: var(--border-radius-xl);
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-top-left-radius: var(--border-radius-xl);
+    border-bottom-left-radius: var(--border-radius-xl);
     box-shadow: var(--shadow-2xl);
     overflow: hidden;
-    transition: all var(--transition-base);
-    min-width: 0;
-    max-height: calc(100vh - 150px);
+    min-width: 300px;
     height: calc(100vh - 150px);
+    box-sizing: border-box;
+    position: relative;
 }
 
-.right-panel::-webkit-scrollbar {
+.right-results-panel {
+    flex: 0 0 50%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top-right-radius: var(--border-radius-xl);
+    border-bottom-right-radius: var(--border-radius-xl);
+    box-shadow: var(--shadow-2xl);
+    overflow: hidden;
+    min-width: 300px;
+    height: calc(100vh - 150px);
+    box-sizing: border-box;
+    position: relative;
+}
+
+.panel-resizer {
+    width: 8px;
+    background: var(--bg-secondary);
+    cursor: col-resize;
+    position: relative;
+    flex-shrink: 0;
+    transition: background var(--transition-base);
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.panel-resizer:hover {
+    background: var(--color-primary);
+}
+
+.panel-resizer::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px;
+    height: 40px;
+    background: var(--color-primary);
+    border-radius: 2px;
+    opacity: 0.5;
+}
+
+.panel-resizer:hover::before {
+    opacity: 1;
+}
+
+.panel-resizer.resizing {
+    background: var(--color-primary);
+}
+
+.panel-resizer.resizing::before {
+    opacity: 1;
+}
+
+.left-image-panel::-webkit-scrollbar,
+.right-results-panel::-webkit-scrollbar {
     width: 12px;
 }
 
-.right-panel::-webkit-scrollbar-track {
+.left-image-panel::-webkit-scrollbar-track,
+.right-results-panel::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 6px;
 }
 
-.right-panel::-webkit-scrollbar-thumb {
+.left-image-panel::-webkit-scrollbar-thumb,
+.right-results-panel::-webkit-scrollbar-thumb {
     background: #888;
     border-radius: 6px;
 }
 
-.right-panel::-webkit-scrollbar-thumb:hover {
+.left-image-panel::-webkit-scrollbar-thumb:hover,
+.right-results-panel::-webkit-scrollbar-thumb:hover {
     background: #555;
-}
-
-.right-panel.expanded {
-    position: fixed;
-    top: 80px;
-    left: 0;
-    right: 0;
-    bottom: 80px;
-    z-index: 1000;
-    border-radius: 0;
 }
 
 .panel-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
     border-bottom: 2px solid var(--bg-secondary);
     background: var(--bg-secondary);
+    flex-shrink: 0;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex: 1;
+    justify-content: space-between;
+}
+
+.panel-footer-left {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 2px solid var(--bg-secondary);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
 }
 
 .panel-title {
@@ -249,7 +316,7 @@ body {
 }
 
 .image-viewer {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     display: flex;
     align-items: flex-start;
     justify-content: center;
@@ -257,9 +324,7 @@ body {
     overflow-x: scroll !important;
     overflow-y: scroll !important;
     background: var(--bg-secondary);
-    min-height: 250px;
-    max-height: 35vh;
-    height: 35vh;
+    min-height: 0;
     position: relative;
     min-width: 0;
     /* Force l'affichage permanent des scrollbars */
@@ -679,6 +744,14 @@ body {
 .status-error {
     background: #f8d7da;
     color: #721c24;
+}
+.status-info {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+.status-partial {
+    background: #d4e6f1;
+    color: #0c5460;
 }
 
 .diff-legend {
