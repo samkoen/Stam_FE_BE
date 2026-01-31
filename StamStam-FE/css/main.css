@@ -297,10 +297,11 @@ body {
 }
 
 .panel-footer-left {
-    padding: var(--spacing-md) var(--spacing-lg);
+    padding: var(--spacing-sm) var(--spacing-lg);
     border-top: 2px solid var(--bg-secondary);
     background: var(--bg-secondary);
     flex-shrink: 0;
+    margin-top: auto; /* Force le footer à rester en bas */
 }
 
 .panel-title {
