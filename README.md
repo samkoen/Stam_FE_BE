@@ -1,5 +1,6 @@
 # StamStam Frontend
 
+
 Frontend moderne et modulaire pour l'application de vérification de Paracha.
 
 ## Structure du projet
