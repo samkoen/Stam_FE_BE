@@ -16,6 +16,10 @@ export class ApiService {
 
             const response = await fetch(config.API_URL, {
                 method: 'POST',
+                headers: {
+                    // On ajoute le Token ici
+                    'Authorization': `Bearer ${config.HF_TOKEN}`
+                },
                 body: formData
             });
 
