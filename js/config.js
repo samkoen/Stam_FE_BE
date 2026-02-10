@@ -9,7 +9,7 @@ const isProduction = !window.location.hostname.includes('localhost') && !window.
 const FALLBACK_PROD_URL = 'http://localhost:8000';
 
 let apiBaseUrl = import.meta.env.VITE_API_URL;
-let hfToken = import.meta.env.HF_TOKEN;
+let hfToken = import.meta.env.VITE_HF_TOKEN;
 
 // Debug log pour voir ce qui se passe en prod
 console.log('Environment config:', {
