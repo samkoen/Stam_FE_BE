@@ -33,6 +33,7 @@ export class UIManager {
             parachaName: document.getElementById('parachaName'),
             detectedText: document.getElementById('detectedText'),
             legend: document.getElementById('legend'),
+            checkDisclaimer: document.getElementById('checkDisclaimer'),
             expandBtn: document.getElementById('expandBtn'),
             cropBtn: document.getElementById('cropBtn'),
             downloadBtn: document.getElementById('downloadBtn'),
@@ -97,6 +98,7 @@ export class UIManager {
         this.elements.panelTitle.textContent = 'תמונה נבחרה';
         this.elements.imageInfo.style.display = 'none';
         this.elements.legend.style.display = 'none';
+        if (this.elements.checkDisclaimer) this.elements.checkDisclaimer.style.display = 'none';
         this.elements.downloadBtn.style.display = 'none';
         this.elements.zoomInBtn.style.display = 'none';
         this.elements.zoomOutBtn.style.display = 'none';
@@ -124,9 +126,9 @@ export class UIManager {
         this.elements.imagePlaceholder.style.display = 'none';
         this.elements.panelTitle.textContent = parachaName ? 'תוצאות הניתוח' : 'זיהוי אותיות';
         
-        // Afficher la checkbox de filtrage si on a des résultats
+        // Checkbox de filtrage des erreurs d'espaces (masquée)
         if (this.elements.filterSpacesContainer) {
-            this.elements.filterSpacesContainer.style.display = parachaName ? 'block' : 'none';
+            this.elements.filterSpacesContainer.style.display = 'none';
         }
         
         // Traduire le nom de la paracha en hébreu
@@ -268,6 +270,7 @@ export class UIManager {
         
         this.elements.imageInfo.style.display = parachaName ? 'block' : 'none';
         this.elements.legend.style.display = 'block';
+        if (this.elements.checkDisclaimer) this.elements.checkDisclaimer.style.display = 'block';
         this.elements.downloadBtn.style.display = 'inline-flex';
         this.elements.zoomInBtn.style.display = 'inline-flex';
         this.elements.zoomOutBtn.style.display = 'inline-flex';
@@ -864,6 +867,7 @@ export class UIManager {
         this.elements.panelTitle.textContent = 'תצוגה מקדימה';
         this.elements.imageInfo.style.display = 'none';
         this.elements.legend.style.display = 'none';
+        if (this.elements.checkDisclaimer) this.elements.checkDisclaimer.style.display = 'none';
         this.elements.downloadBtn.style.display = 'none';
         this.elements.zoomInBtn.style.display = 'none';
         this.elements.zoomOutBtn.style.display = 'none';

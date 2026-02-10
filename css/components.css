@@ -477,6 +477,26 @@
     font-size: 1.1rem;
 }
 
+/* Check scope disclaimer (שים לב) */
+.check-disclaimer {
+    background: var(--bg-primary);
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-top: 1px solid var(--bg-secondary);
+    margin-top: 0;
+}
+
+.check-disclaimer-text {
+    font-size: 0.95rem;
+    color: var(--text-muted, #666);
+    margin: 0 0 var(--spacing-sm) 0;
+    text-align: right;
+    line-height: 1.5;
+}
+
+.check-disclaimer-text:last-child {
+    margin-bottom: 0;
+}
+
 /* Animations */
 @keyframes fadeIn {
     from {
