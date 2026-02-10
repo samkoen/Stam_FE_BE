@@ -18,7 +18,7 @@ export class ApiService {
                 method: 'POST',
                 headers: {
                     // On ajoute le Token ici
-                    'Authorization': `Bearer ${config.HF_TOKEN}`
+                    'Authorization': `Bearer ${config.hfToken}`
                 },
                 body: formData
             });
