@@ -14,6 +14,9 @@ export class ApiService {
             const formData = new FormData();
             formData.append('file', file);
 
+            console.log("URL utilisée :", config.API_URL);
+            console.log("Token détecté :", config.hfToken ? "OUI" : "NON (Vide)");
+
             const response = await fetch(config.API_URL, {
                 method: 'POST',
                 headers: {
