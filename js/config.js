@@ -11,6 +11,7 @@ const FALLBACK_PROD_URL = 'http://localhost:8000';
 let apiBaseUrl = import.meta.env.VITE_API_URL;
 let hfToken = import.meta.env.VITE_HF_TOKEN;
 
+
 // Debug log pour voir ce qui se passe en prod
 console.log('Environment config:', {
     mode: import.meta.env.MODE,
