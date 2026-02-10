@@ -26,3 +26,5 @@ Thumbs.db
 *.h5
 *.pt
 *.exe
+
+vercel.json
