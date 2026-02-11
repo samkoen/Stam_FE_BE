@@ -1,11 +1,11 @@
-# Exemple de configuration des variables d'environnement pour le Frontend
+# Variables d'environnement pour le Frontend (Vite)
+# Vercel : Project Settings > Environment Variables, puis redéployer (les VITE_* sont injectées au build).
 
-# URL de l'API Backend
-# Si non défini, utilise http://localhost:8000 par défaut
-
-# Pour le développement local :
+# URL du backend (obligatoire en prod)
+# Local :
 VITE_API_URL=http://localhost:8000
 
-# Pour la production :
-# VITE_API_URL=https://api.mon-domaine.com
+# Vercel + backend sur Hugging Face : mettre l'URL du Space (sans slash final)
+# VITE_API_URL=https://VOTRE-USERNAME-stam-be.hf.space
+# VITE_HF_TOKEN=hf_xxxx  (optionnel, si le Space HF est protégé par token)
 

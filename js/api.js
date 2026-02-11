@@ -66,8 +66,12 @@ export class ApiService {
             formData.append('file', file);
             formData.append('email', email);
 
+            const headers = {};
+            if (config.hfToken) headers['Authorization'] = `Bearer ${config.hfToken}`;
+
             const response = await fetch(config.API_DETECT_LETTERS, {
                 method: 'POST',
+                headers,
                 body: formData
             });
 
