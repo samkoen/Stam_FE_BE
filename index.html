@@ -78,6 +78,7 @@
                     </div>
 
                     <div class="panel-footer-left">
+                        <p class="upload-tip" aria-hidden="true">לקבלת תוצאות טובות, יש להציג תמונה ישרה עם כמה שפחות שוליים. ניתן לחתוך את השוליים בעזרת אייקון המספריים.</p>
                         <div class="action-buttons">
                             <button class="btn btn-success" id="detectLettersBtn" disabled>
                                 <span class="btn-text">בדוק פרשה</span>
@@ -134,6 +135,12 @@
                                     <input type="checkbox" id="showSpaceErrors" style="transform: scale(1.5); cursor: pointer;">
                                     <span>הצג שגיאות רווחים</span>
                                 </label>
+                            </div>
+
+                            <div class="info-item" id="strictModeContainer" style="margin-top: 10px; display: none;">
+                                <button type="button" id="strictModeBtn" class="btn-strict-mode" title="מצב מחמיר: אותיות שמוכרות רק כזוג מבלבל יופיעו כשגויות">
+                                    <span id="strictModeBtnText">הצג במצב מחמיר</span>
+                                </button>
                             </div>
 
                             <div class="info-item" id="detectedTextItem" style="display: none;">

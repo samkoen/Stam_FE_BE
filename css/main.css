@@ -312,6 +312,14 @@ body {
     margin-top: auto; /* Force le footer à rester en bas */
 }
 
+.upload-tip {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0 0 var(--spacing-sm) 0;
+    line-height: 1.4;
+    text-align: right;
+}
+
 .panel-title {
     font-size: 1.5rem;
     color: var(--text-primary);

@@ -384,7 +384,8 @@ class App {
                 result.differences || [],
                 result.parachaStatus || null,
                 result.hasErrors,
-                result.errors || null
+                result.errors || null,
+                result.confusableAccepted || []
             );
             this.ui.elements.panelTitle.textContent = 'זיהוי אותיות';
         } catch (error) {

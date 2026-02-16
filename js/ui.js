@@ -44,21 +44,34 @@ export class UIManager {
             differencesInfo: document.getElementById('differencesInfo'),
             showSpaceErrors: document.getElementById('showSpaceErrors'),
             filterSpacesContainer: document.getElementById('filterSpacesContainer'),
-            panelResizer: document.getElementById('panelResizer')
+            panelResizer: document.getElementById('panelResizer'),
+            strictModeContainer: document.getElementById('strictModeContainer'),
+            strictModeBtn: document.getElementById('strictModeBtn'),
+            strictModeBtnText: document.getElementById('strictModeBtnText')
         };
         this.isExpanded = false;
         this.zoomLevel = 1.0;
         this.lastDifferences = []; // Stocker les différences pour le filtrage
+        this.lastConfusableAccepted = []; // Lettres acceptées uniquement par paires confondables (mode strict)
+        this.strictMode = false;
         
         // Listener pour la checkbox de filtrage des espaces
         if (this.elements.showSpaceErrors) {
             this.elements.showSpaceErrors.addEventListener('change', () => {
                 if (this.lastDifferences) {
                     this.showDifferences(this.lastDifferences);
-                    
-                    // Mettre à jour aussi le résumé des erreurs si possible
-                    // (nécessite de recalculer les comptes filtrés, fait dans showDifferences mais pas mis à jour dans le header status-pill)
-                    // Pour l'instant on met juste à jour la liste.
+                }
+            });
+        }
+        // Bascule mode strict (lettres confondables affichées comme שגוי)
+        if (this.elements.strictModeBtn) {
+            this.elements.strictModeBtn.addEventListener('click', () => {
+                this.strictMode = !this.strictMode;
+                if (this.elements.strictModeBtnText) {
+                    this.elements.strictModeBtnText.textContent = this.strictMode ? 'הצג במצב רגיל' : 'הצג במצב מחמיר';
+                }
+                if (this.lastDifferences) {
+                    this.showDifferences(this.lastDifferences);
                 }
             });
         }
@@ -117,8 +130,15 @@ export class UIManager {
      * @param {string} detectedText - Texte hébreu détecté
      * @param {Array} differences - Liste des différences trouvées
      */
-    showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null) {
+    showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = []) {
         this.lastDifferences = differences || [];
+        this.lastConfusableAccepted = confusableAccepted || [];
+        this.strictMode = false;
+        this.lastErrors = errors || null;
+        if (this.elements.strictModeBtnText) this.elements.strictModeBtnText.textContent = 'הצג במצב מחמיר';
+        if (this.elements.strictModeContainer) {
+            this.elements.strictModeContainer.style.display = this.lastConfusableAccepted.length > 0 ? 'block' : 'none';
+        }
         
         this.elements.displayImage.src = `data:image/jpeg;base64,${imageBase64}`;
         this.elements.displayImage.style.display = 'block';
@@ -331,14 +351,48 @@ export class UIManager {
     }
 
     /**
+     * Met à jour les overlays orange pour le mode strict (lettres confondables en מצב מחמיר)
+     */
+    updateStrictModeOverlays() {
+        const existing = this.elements.imageZoomContainer.querySelectorAll('.confusable-strict-overlay');
+        existing.forEach(el => el.remove());
+        if (!this.strictMode || !this.lastConfusableAccepted || this.lastConfusableAccepted.length === 0) return;
+        const image = this.elements.displayImage;
+        if (!image || !image.naturalWidth) return;
+        const imgRect = image.getBoundingClientRect();
+        if (image.naturalWidth === 0 || image.naturalHeight === 0) return;
+        const scaleX = imgRect.width / image.naturalWidth;
+        const scaleY = imgRect.height / image.naturalHeight;
+        const imgLeft = image.offsetLeft;
+        const imgTop = image.offsetTop;
+        this.lastConfusableAccepted.forEach((item) => {
+            const rect = item.rect;
+            if (!rect || !Array.isArray(rect) || rect.length < 4) return;
+            const [x, y, w, h] = rect;
+            const overlay = document.createElement('div');
+            overlay.className = 'confusable-strict-overlay';
+            overlay.style.position = 'absolute';
+            overlay.style.border = '2px solid #ffa500';
+            overlay.style.left = `${imgLeft + x * scaleX}px`;
+            overlay.style.top = `${imgTop + y * scaleY}px`;
+            overlay.style.width = `${w * scaleX}px`;
+            overlay.style.height = `${h * scaleY}px`;
+            overlay.style.pointerEvents = 'none';
+            overlay.style.zIndex = '10';
+            this.elements.imageZoomContainer.appendChild(overlay);
+        });
+    }
+
+    /**
      * Affiche les différences trouvées entre le texte détecté et le texte de référence
      * @param {Array} differences - Liste des différences
      */
     showDifferences(differences) {
         // Sauvegarder les différences pour les mises à jour ultérieures (zoom, filtre)
         this.lastDifferences = differences;
-        // Mettre à jour les overlays
+        // Mettre à jour les overlays (espaces + mode strict)
         this.updateSpaceErrorOverlays();
+        this.updateStrictModeOverlays();
 
         const differencesInfoEl = document.getElementById('differencesInfo');
         if (!differencesInfoEl) {
@@ -349,7 +403,7 @@ export class UIManager {
         // Filtrage des erreurs d'espaces
         const showSpaces = this.elements.showSpaceErrors ? this.elements.showSpaceErrors.checked : false;
         
-        const filteredDifferences = (differences || []).filter(d => {
+        let filteredDifferences = (differences || []).filter(d => {
             if (showSpaces) return true;
             
             // Masquer les erreurs qui sont UNIQUEMENT des espaces (missing ou extra)
@@ -363,7 +417,19 @@ export class UIManager {
             return true;
         });
         
-        if (!differences || differences.length === 0) {
+        // Mode strict : ajouter les lettres acceptées uniquement par paires confondables comme שגוי (avec rect pour overlay + zoom)
+        if (this.strictMode && this.lastConfusableAccepted && this.lastConfusableAccepted.length > 0) {
+            const confusableAsWrong = this.lastConfusableAccepted.map(item => ({
+                type: 'wrong',
+                text: item.detected_char || '',
+                expected: item.expected_char || '',
+                rect: item.rect || null
+            }));
+            filteredDifferences = filteredDifferences.concat(confusableAsWrong);
+        }
+        
+        const hasStrictWrongs = this.strictMode && this.lastConfusableAccepted && this.lastConfusableAccepted.length > 0;
+        if ((!differences || differences.length === 0) && !hasStrictWrongs) {
             // Ne pas afficher de message ici - il est déjà affiché en haut
             // Afficher juste la légende
             let successText = '<div class="differences-explanation">';
@@ -451,7 +517,7 @@ export class UIManager {
                 const contextBefore = item.context_before || '';
                 const contextAfter = item.context_after || '';
                 const rect = item.rect || null;
-                const rectStr = rect ? JSON.stringify(rect) : '';
+                const rectStr = rect && Array.isArray(rect) ? JSON.stringify(rect) : (rect ? JSON.stringify(rect) : '');
                 
                 explanationText += `<div class="diff-wrong-item" data-rect="${rectStr}" style="cursor: pointer;">`;
                 explanationText += `<div class="diff-wrong-char">שגוי: <strong>${detected}</strong> (צריך להיות: <strong>${expected}</strong>)</div>`;
@@ -937,8 +1003,9 @@ export class UIManager {
                     img.style.margin = '0 auto';
                 }
                 
-                // Mettre à jour les overlays d'erreurs d'espaces
+                // Mettre à jour les overlays d'erreurs d'espaces et mode strict
                 this.updateSpaceErrorOverlays();
+                this.updateStrictModeOverlays();
             } else {
                 // Si les dimensions naturelles ne sont pas encore disponibles, attendre le chargement
                 // L'événement 'load' se chargera d'appliquer le zoom
@@ -1081,11 +1148,16 @@ export class UIManager {
             successMessageEl.style.display = 'none';
         }
         
-        // Supprimer les overlays d'erreur
+        // Supprimer les overlays d'erreur et mode strict
         const existingOverlays = this.elements.imageZoomContainer.querySelectorAll('.space-error-overlay');
         existingOverlays.forEach(el => el.remove());
+        const strictOverlays = this.elements.imageZoomContainer.querySelectorAll('.confusable-strict-overlay');
+        strictOverlays.forEach(el => el.remove());
         
         this.lastDifferences = [];
+        this.lastConfusableAccepted = [];
+        this.strictMode = false;
+        if (this.elements.strictModeContainer) this.elements.strictModeContainer.style.display = 'none';
     }
 
     /**

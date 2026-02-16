@@ -103,7 +103,8 @@ export class ApiService {
                 differences: data.differences || [],
                 parachaStatus: data.paracha_status || null,
                 hasErrors: data.has_errors ?? null,
-                errors: data.errors || null
+                errors: data.errors || null,
+                confusableAccepted: data.confusable_accepted || []
             };
         } catch (error) {
             if (error instanceof TypeError && error.message.includes('fetch')) {
