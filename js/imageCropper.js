@@ -61,13 +61,36 @@ export class ImageCropper {
             this.handles.push(handle);
         });
 
-        // Event listeners pour le déplacement du rectangle
+        // Souris
         this.cropBox.addEventListener('mousedown', this.onBoxMouseDown = this.handleBoxMouseDown.bind(this));
-        
-        // Event listeners pour le redimensionnement via les poignées
         this.handles.forEach(handle => {
             handle.addEventListener('mousedown', this.onHandleMouseDown = this.handleHandleMouseDown.bind(this));
         });
+        // Touch (mobile / Samsung) : recadrage au doigt
+        this.cropBox.addEventListener('touchstart', this.onBoxTouchStart = this.handleBoxTouchStart.bind(this), { passive: false });
+        this.handles.forEach(handle => {
+            handle.addEventListener('touchstart', this.handleHandleTouchStart.bind(this), { passive: false, capture: true });
+        });
+    }
+
+    /** Retourne { clientX, clientY } depuis un événement souris ou touch */
+    getEventCoords(e) {
+        const t = e.touches?.[0] || e.changedTouches?.[0];
+        return t ? { clientX: t.clientX, clientY: t.clientY } : { clientX: e.clientX, clientY: e.clientY };
+    }
+
+    handleBoxTouchStart(e) {
+        e.preventDefault();
+        const coords = this.getEventCoords(e);
+        this.handleBoxMouseDown({ ...e, clientX: coords.clientX, clientY: coords.clientY });
+    }
+
+    handleHandleTouchStart(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const coords = this.getEventCoords(e);
+        const handle = e.currentTarget;
+        this.handleHandleMouseDown({ ...e, target: handle, clientX: coords.clientX, clientY: coords.clientY });
     }
 
     /**
@@ -95,10 +118,25 @@ export class ImageCropper {
         
         this.updateCropBox();
         
-        // Event listeners globaux pour le drag
-        document.addEventListener('mousemove', this.onMouseMove = this.handleMouseMove.bind(this));
-        document.addEventListener('mouseup', this.onMouseUp = this.handleMouseUp.bind(this));
-        
+        // Event listeners globaux pour le drag (souris + touch)
+        this.onMouseMove = this.handleMouseMove.bind(this);
+        this.onMouseUp = this.handleMouseUp.bind(this);
+        this.onTouchMove = (e) => {
+            if (e.touches.length === 1) {
+                e.preventDefault();
+                this.handleMouseMove({ ...e, clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+            }
+        };
+        this.onTouchEnd = (e) => {
+            const t = e.changedTouches?.[0] || e.touches?.[0];
+            this.handleMouseUp(t ? { ...e, clientX: t.clientX, clientY: t.clientY } : e);
+        };
+        document.addEventListener('mousemove', this.onMouseMove);
+        document.addEventListener('mouseup', this.onMouseUp);
+        document.addEventListener('touchmove', this.onTouchMove, { passive: false });
+        document.addEventListener('touchend', this.onTouchEnd);
+        document.addEventListener('touchcancel', this.onTouchEnd);
+
         return true;
     }
 
@@ -114,12 +152,13 @@ export class ImageCropper {
             this.imageElement.style.cursor = 'default';
         }
         
-        // Retirer les event listeners globaux
-        if (this.onMouseMove) {
-            document.removeEventListener('mousemove', this.onMouseMove);
-        }
-        if (this.onMouseUp) {
-            document.removeEventListener('mouseup', this.onMouseUp);
+        // Retirer les event listeners globaux (souris + touch)
+        if (this.onMouseMove) document.removeEventListener('mousemove', this.onMouseMove);
+        if (this.onMouseUp) document.removeEventListener('mouseup', this.onMouseUp);
+        if (this.onTouchMove) document.removeEventListener('touchmove', this.onTouchMove);
+        if (this.onTouchEnd) {
+            document.removeEventListener('touchend', this.onTouchEnd);
+            document.removeEventListener('touchcancel', this.onTouchEnd);
         }
     }
 
@@ -158,11 +197,11 @@ export class ImageCropper {
     updateCropBox() {
         if (!this.cropBox || !this.imageRect) return;
 
-        // Limiter aux dimensions de l'image
-        this.cropX = Math.max(0, Math.min(this.cropX, this.imageRect.width - this.cropWidth));
-        this.cropY = Math.max(0, Math.min(this.cropY, this.imageRect.height - this.cropHeight));
+        // Limiter aux dimensions de l'image (clamp width/height d'abord pour ne pas déplacer l'autre bord)
         this.cropWidth = Math.max(50, Math.min(this.cropWidth, this.imageRect.width - this.cropX));
         this.cropHeight = Math.max(50, Math.min(this.cropHeight, this.imageRect.height - this.cropY));
+        this.cropX = Math.max(0, Math.min(this.cropX, this.imageRect.width - this.cropWidth));
+        this.cropY = Math.max(0, Math.min(this.cropY, this.imageRect.height - this.cropHeight));
 
         // Positionner le rectangle par rapport à l'image (qui peut être centrée dans le conteneur)
         this.cropBox.style.left = `${this.imageRect.left + this.cropX}px`;

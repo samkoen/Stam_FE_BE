@@ -43,9 +43,7 @@ export class ApiService {
                 paracha: data.paracha || 'לא זוהה'
             };
         } catch (error) {
-            if (error instanceof TypeError && error.message.includes('fetch')) {
-                throw new Error(config.MESSAGES.ERROR_NETWORK);
-            }
+            if (isNetworkError(error)) throw new Error(config.MESSAGES.ERROR_NETWORK);
             throw error;
         }
     }
@@ -107,11 +105,15 @@ export class ApiService {
                 confusableAccepted: data.confusable_accepted || []
             };
         } catch (error) {
-            if (error instanceof TypeError && error.message.includes('fetch')) {
-                throw new Error(config.MESSAGES.ERROR_NETWORK);
-            }
+            if (isNetworkError(error)) throw new Error(config.MESSAGES.ERROR_NETWORK);
             throw error;
         }
     }
+}
+
+function isNetworkError(error) {
+    if (error instanceof TypeError) return true;
+    const msg = (error?.message || '').toLowerCase();
+    return msg.includes('fetch') || msg.includes('network') || msg.includes('failed to load');
 }
 

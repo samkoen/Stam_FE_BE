@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">stambodek</string>
+    <string name="title_activity_main">stambodek</string>
+    <string name="package_name">stambodek.app</string>
+    <string name="custom_url_scheme">stambodek.app</string>
+</resources>

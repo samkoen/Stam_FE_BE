@@ -1,8 +1,10 @@
+import { Capacitor } from '@capacitor/core';
 import { UIManager } from './ui.js';
 import { FileHandler } from './fileHandler.js';
 import { ApiService } from './api.js';
 import { config } from './config.js';
 import { ImageCropper } from './imageCropper.js';
+import { takePhoto } from './camera.js';
 
 /**
  * Application principale
@@ -64,6 +66,13 @@ class App {
             });
         }
 
+        // Bouton caméra (prise de photo directe)
+        if (this.ui.elements.cameraBtn) {
+            this.ui.elements.cameraBtn.addEventListener('click', () => {
+                this.handleTakePhoto();
+            });
+        }
+
         // Upload area - clic (si existe encore)
         if (this.ui.elements.uploadArea) {
             this.ui.elements.uploadArea.addEventListener('click', () => {
@@ -83,13 +92,13 @@ class App {
             this.ui.elements.uploadArea.addEventListener('drop', (e) => {
                 e.preventDefault();
                 this.ui.setDragOver(false);
-                this.handleFileSelect(e.dataTransfer.files[0]);
+                this.handleFileSelect(e.dataTransfer.files[0]).catch(err => this.ui.showError(err?.message || 'שגיאה'));
             });
         }
 
         // File input - changement
         this.ui.elements.fileInput.addEventListener('change', (e) => {
-            this.handleFileSelect(e.target.files[0]);
+            this.handleFileSelect(e.target.files[0]).catch(err => this.ui.showError(err?.message || 'שגיאה'));
         });
 
         // Drag and drop sur le panneau d'image
@@ -103,7 +112,7 @@ class App {
                 e.preventDefault();
                 e.stopPropagation();
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    this.handleFileSelect(e.dataTransfer.files[0]);
+                    this.handleFileSelect(e.dataTransfer.files[0]).catch(err => this.ui.showError(err?.message || 'שגיאה'));
                 }
             });
         }
@@ -193,6 +202,9 @@ class App {
             const delta = e.deltaY > 0 ? -0.1 : 0.1;
             this.ui.zoomImage(delta);
         }, { passive: false });
+
+        // Zoom pinch (deux doigts) sur mobile
+        this.setupPinchZoom();
 
         // Gestion du chargement de l'image pour appliquer le zoom
         this.ui.elements.displayImage.addEventListener('load', () => {
@@ -315,10 +327,68 @@ class App {
     }
 
     /**
+     * Configure le zoom pinch (deux doigts) sur l'image
+     */
+    setupPinchZoom() {
+        const container = this.ui.elements.imageZoomContainer;
+        if (!container) return;
+
+        let pinchInitialDistance = 0;
+        let pinchInitialZoom = 0;
+
+        container.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                pinchInitialDistance = Math.hypot(
+                    e.touches[1].clientX - e.touches[0].clientX,
+                    e.touches[1].clientY - e.touches[0].clientY
+                );
+                pinchInitialZoom = this.ui.zoomLevel;
+            }
+        }, { passive: true });
+
+        container.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && pinchInitialDistance > 0) {
+                e.preventDefault();
+                const dist = Math.hypot(
+                    e.touches[1].clientX - e.touches[0].clientX,
+                    e.touches[1].clientY - e.touches[0].clientY
+                );
+                const rawScale = dist / pinchInitialDistance;
+                const scale = Math.pow(rawScale, 0.6);
+                const newZoom = Math.max(0.99, Math.min(20, pinchInitialZoom * scale));
+                this.ui.zoomLevel = newZoom;
+                this.ui.applyZoom();
+            }
+        }, { passive: false });
+
+        container.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) {
+                pinchInitialDistance = 0;
+            }
+        }, { passive: true });
+    }
+
+    /**
+     * Prend une photo avec la caméra (Samsung/Android native)
+     */
+    async handleTakePhoto() {
+        try {
+            const result = await takePhoto();
+            if (result) {
+                // Utiliser displayUrl (data URL) pour l'affichage : plus fiable dans WebView Android
+                this.handleFileSelect(result.file, result.displayUrl);
+            }
+        } catch (error) {
+            this.ui.showError(error.message || 'שגיאה בצילום תמונה');
+        }
+    }
+
+    /**
      * Gère la sélection d'un fichier
      * @param {File} file - Fichier sélectionné
+     * @param {string} [displayUrl] - URL d'affichage optionnelle (data URL pour caméra/scanner, évite problèmes WebView)
      */
-    handleFileSelect(file) {
+    async handleFileSelect(file, displayUrl) {
         if (!file) return;
 
         // Valider le fichier
@@ -328,16 +398,36 @@ class App {
             return;
         }
 
-        // Libérer l'ancienne URL si elle existe
-        if (this.currentImageUrl) {
+        // Sur Android, le File du sélecteur (content://) peut échouer à l'envoi.
+        // On le convertit en copie en mémoire, sauf si displayUrl est déjà fourni (caméra/scanner).
+        if (!displayUrl) {
+            try {
+                file = await FileHandler.fileToInMemory(file);
+                // Sur Android WebView, blob/data URLs n'affichent pas → utiliser base64ToDisplayUrl
+                if (Capacitor.getPlatform() !== 'web') {
+                    const buf = await file.arrayBuffer();
+                    const bytes = new Uint8Array(buf);
+                    let binary = '';
+                    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                    const b64 = btoa(binary);
+                    displayUrl = await FileHandler.base64ToDisplayUrl(b64);
+                }
+            } catch (err) {
+                this.ui.showError(err?.message || 'שגיאה בקריאת הקובץ');
+                return;
+            }
+        }
+
+        // Libérer l'ancienne URL blob si elle existe (pas les data URL)
+        if (this.currentImageUrl && this.currentImageUrl.startsWith('blob:')) {
             FileHandler.revokeImagePreview(this.currentImageUrl);
         }
 
         this.currentFile = file;
         this.ui.hideError();
         
-        // Afficher l'image sélectionnée dans le panneau de droite
-        this.currentImageUrl = FileHandler.createImagePreview(file);
+        // Afficher l'image : displayUrl (data URL) si fourni (caméra/scanner), sinon blob URL
+        this.currentImageUrl = displayUrl || FileHandler.createImagePreview(file);
         this.ui.showSelectedImage(this.currentImageUrl);
         this.ui.elements.resetBtn.style.display = 'inline-flex';
         
@@ -369,13 +459,8 @@ class App {
             const result = await ApiService.detectLetters(fileToSend, this.userEmail);
             
             this.currentImageBase64 = result.image;
-            // Log pour vérifier que le texte est bien reçu
-            console.log('=== RÉSULTAT API ===');
-            console.log('result:', result);
-            console.log('result.text:', result.text);
-            console.log('Type de result.text:', typeof result.text);
-            console.log('Longueur de result.text:', result.text ? result.text.length : 0);
-            
+            // URL d'affichage : sur Android, les data URLs échouent → utiliser convertFileSrc
+            const displayImageUrl = await FileHandler.base64ToDisplayUrl(result.image);
             // Afficher le résultat avec le nom de la paracha détectée, le texte et les différences
             this.ui.showResults(
                 result.image,
@@ -385,7 +470,8 @@ class App {
                 result.parachaStatus || null,
                 result.hasErrors,
                 result.errors || null,
-                result.confusableAccepted || []
+                result.confusableAccepted || [],
+                displayImageUrl
             );
             this.ui.elements.panelTitle.textContent = 'זיהוי אותיות';
         } catch (error) {
@@ -516,7 +602,8 @@ class App {
      * Télécharge le résultat
      */
     downloadResult() {
-        const imageBase64 = this.ui.getCurrentImageBase64();
+        // Utiliser currentImageBase64 (résultat API) car img.src peut être une URL fichier sur Android
+        const imageBase64 = this.currentImageBase64 || this.ui.getCurrentImageBase64();
         if (imageBase64) {
             const filename = this.currentFile 
                 ? `resultat_${this.currentFile.name.replace(/\.[^/.]+$/, '')}.jpg`

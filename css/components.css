@@ -551,6 +551,18 @@
     box-sizing: border-box;
 }
 
+/* Zone tactile plus grande sur mobile (recadrage au doigt) */
+@media (pointer: coarse) {
+    .crop-handle {
+        width: 28px;
+        height: 28px;
+    }
+    .crop-handle-nw { top: -14px; left: -14px; }
+    .crop-handle-ne { top: -14px; right: -14px; }
+    .crop-handle-sw { bottom: -14px; left: -14px; }
+    .crop-handle-se { bottom: -14px; right: -14px; }
+}
+
 .crop-handle-nw {
     top: -6px;
     left: -6px;

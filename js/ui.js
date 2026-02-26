@@ -9,6 +9,7 @@ export class UIManager {
             uploadSection: document.getElementById('uploadSection'),
             uploadArea: document.getElementById('uploadArea'),
             uploadBtnSmall: document.getElementById('uploadBtnSmall'),
+            cameraBtn: document.getElementById('cameraBtn'),
             fileInput: document.getElementById('fileInput'),
             fileInfo: document.getElementById('fileInfo'),
             fileInfoSmall: document.getElementById('fileInfoSmall'),
@@ -130,7 +131,7 @@ export class UIManager {
      * @param {string} detectedText - Texte hébreu détecté
      * @param {Array} differences - Liste des différences trouvées
      */
-    showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = []) {
+    showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = [], displayImageUrl) {
         this.lastDifferences = differences || [];
         this.lastConfusableAccepted = confusableAccepted || [];
         this.strictMode = false;
@@ -139,8 +140,8 @@ export class UIManager {
         if (this.elements.strictModeContainer) {
             this.elements.strictModeContainer.style.display = this.lastConfusableAccepted.length > 0 ? 'block' : 'none';
         }
-        
-        this.elements.displayImage.src = `data:image/jpeg;base64,${imageBase64}`;
+        // displayImageUrl : URL fichier (convertFileSrc) sur Android, sinon data URL
+        this.elements.displayImage.src = displayImageUrl || `data:image/jpeg;base64,${imageBase64}`;
         this.elements.displayImage.style.display = 'block';
         this.elements.imageZoomContainer.style.display = 'block';
         this.elements.imagePlaceholder.style.display = 'none';
@@ -947,7 +948,7 @@ export class UIManager {
      * @param {number} delta - Delta de zoom (positif pour zoomer, négatif pour dézoomer)
      */
     zoomImage(delta) {
-        this.zoomLevel = Math.max(0.5, Math.min(20.0, this.zoomLevel + delta));
+        this.zoomLevel = Math.max(0.99, Math.min(20.0, this.zoomLevel + delta));
         this.applyZoom();
     }
 
@@ -970,15 +971,19 @@ export class UIManager {
             const img = this.elements.displayImage;
             // Calculer les dimensions naturelles
             if (img.naturalWidth && img.naturalHeight) {
+                const viewer = this.elements.imageViewer;
                 const container = this.elements.imageZoomContainer;
-                const containerWidth = container.clientWidth || container.offsetWidth;
-                const containerHeight = container.clientHeight || container.offsetHeight;
-                
-                // Calculer la taille de base pour que l'image rentre dans le conteneur au zoom 1.0
+                const viewerWidth = viewer ? (viewer.clientWidth || viewer.offsetWidth) : 400;
+                const viewerHeight = viewer ? (viewer.clientHeight || viewer.offsetHeight) : 400;
+                const containerWidth = container.clientWidth || container.offsetWidth || viewerWidth;
+                const containerHeight = container.clientHeight || container.offsetHeight || viewerHeight;
+                const availWidth = Math.min(viewerWidth, containerWidth);
+                const availHeight = Math.min(viewerHeight, containerHeight);
+
+                // baseScale = fit entier dans l'écran visible (zoom 1.0)
                 const baseScale = Math.min(
-                    containerWidth / img.naturalWidth,
-                    containerHeight / img.naturalHeight,
-                    1.0
+                    availWidth / img.naturalWidth,
+                    availHeight / img.naturalHeight
                 );
                 
                 // Appliquer le zoom: on peut maintenant zoomer au-delà de la taille du conteneur

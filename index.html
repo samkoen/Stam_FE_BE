@@ -2,7 +2,8 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Sans user-scalable=no / maximum-scale=1 : sur Android le scroll à 1 doigt fonctionne. Éviter de bloquer le zoom page si besoin via CSS. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>סתם סת"ם - בדיקת פרשה</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/components.css">
@@ -31,6 +32,10 @@
                             <button class="btn-upload-small" id="uploadBtnSmall" title="בחר תמונה">
                                 <span class="upload-icon-small">📄</span>
                                 <span class="upload-text-small">בחר תמונה</span>
+                            </button>
+                            <button class="btn-upload-small btn-camera" id="cameraBtn" title="צלם תמונה">
+                                <span class="upload-icon-small">📷</span>
+                                <span class="upload-text-small">צלם תמונה</span>
                             </button>
                             <input type="file" id="fileInput" accept="image/*" class="file-input">
                             <div class="file-info-small" id="fileInfoSmall"></div>

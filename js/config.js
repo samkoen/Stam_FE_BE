@@ -1,37 +1,31 @@
 /**
  * Configuration de l'application.
- * En production (Vercel) : définir VITE_API_URL (URL du backend HF) et optionnellement VITE_HF_TOKEN
- * dans les variables d'environnement du projet Vercel, puis redéployer.
+ * VITE_API_URL et VITE_HF_TOKEN : définir dans .env
  */
-// Détection de l'environnement
-const isProduction = !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1');
+import { Capacitor } from '@capacitor/core';
 
-// URL par défaut si la variable d'env manque (A REMPLACER PAR VOTRE VRAIE URL HF si nécessaire)
-const FALLBACK_PROD_URL = 'http://localhost:8000';
+const isNativeApp = Capacitor.getPlatform() !== 'web';
+const isLocalhost = window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1');
 
-// VITE_* sont injectées au build par Vite (sur Vercel : définir dans Project Settings > Environment Variables)
+const FALLBACK_PROD_URL = 'https://samkoen-stam-be.hf.space';
+
 let apiBaseUrl = (import.meta.env.VITE_API_URL || '').toString().trim();
 let hfToken = (import.meta.env.VITE_HF_TOKEN || '').toString().trim();
 
-// En prod, une URL vide enverrait les requêtes vers le même domaine (FE) → 404. On exige une vraie URL.
-if (!apiBaseUrl) {
-    if (isProduction) {
-        console.warn('⚠️ VITE_API_URL manquante ou vide. Définir sur Vercel l’URL du backend (ex: https://votre-space.hf.space) puis redéployer.');
-        apiBaseUrl = FALLBACK_PROD_URL;
-    } else {
-        apiBaseUrl = 'http://localhost:8000';
-    }
-}
-
-// Éviter d’utiliser l’origine courante par erreur (pas de URL relative en prod)
-if (isProduction && (apiBaseUrl.startsWith('/') || !/^https?:\/\//i.test(apiBaseUrl))) {
-    console.warn('⚠️ VITE_API_URL doit être une URL absolue (ex: https://xxx.hf.space). Fallback utilisé.');
+// App native (Samsung) : toujours URL prod (localhost n'existe pas sur le téléphone)
+if (isNativeApp) {
+    if (!apiBaseUrl || apiBaseUrl.includes('localhost')) apiBaseUrl = FALLBACK_PROD_URL;
+} else if (isLocalhost) {
+    apiBaseUrl = 'http://localhost:8000';
+} else if (!apiBaseUrl) {
     apiBaseUrl = FALLBACK_PROD_URL;
 }
 
-const API_BASE_URL = apiBaseUrl.replace(/\/$/, ''); // pas de slash final
-// FORCE PROD URL POUR TEST
-//const API_BASE_URL = 'https://samkoen-stam-be.hf.space';
+if (!apiBaseUrl.startsWith('http')) {
+    apiBaseUrl = FALLBACK_PROD_URL;
+}
+
+const API_BASE_URL = apiBaseUrl.replace(/\/$/, '');
 
 export const config = {
     API_BASE_URL,
@@ -76,5 +70,3 @@ export function translateParachaName(latinName) {
     if (!latinName) return 'לא זוהה';
     return config.PARACHA_NAMES[latinName] || latinName;
 }
-
-
