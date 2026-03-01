@@ -12,9 +12,11 @@ const FALLBACK_PROD_URL = 'https://samkoen-stam-be.hf.space';
 let apiBaseUrl = (import.meta.env.VITE_API_URL || '').toString().trim();
 let hfToken = (import.meta.env.VITE_HF_TOKEN || '').toString().trim();
 
-// App native (Samsung) : toujours URL prod (localhost n'existe pas sur le téléphone)
+// App native (Samsung / Capacitor) : toujours URL prod HTTPS (évite IP locale, localhost, timeouts)
 if (isNativeApp) {
-    if (!apiBaseUrl || apiBaseUrl.includes('localhost')) apiBaseUrl = FALLBACK_PROD_URL;
+    if (!apiBaseUrl || !apiBaseUrl.startsWith('https') || apiBaseUrl.includes('localhost')) {
+        apiBaseUrl = FALLBACK_PROD_URL;
+    }
 } else if (isLocalhost) {
     apiBaseUrl = 'http://localhost:8000';
 } else if (!apiBaseUrl) {

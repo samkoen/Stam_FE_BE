@@ -519,8 +519,9 @@ export class UIManager {
                 const contextAfter = item.context_after || '';
                 const rect = item.rect || null;
                 const rectStr = rect && Array.isArray(rect) ? JSON.stringify(rect) : (rect ? JSON.stringify(rect) : '');
-                
-                explanationText += `<div class="diff-wrong-item" data-rect="${rectStr}" style="cursor: pointer;">`;
+                const safeDet = (detected + '').replace(/"/g, '&quot;');
+                const safeExp = (expected + '').replace(/"/g, '&quot;');
+                explanationText += `<div class="diff-wrong-item" data-rect="${rectStr}" data-diff-type="wrong" data-diff-text="${safeDet}" data-diff-expected="${safeExp}" style="cursor: pointer;">`;
                 explanationText += `<div class="diff-wrong-char">שגוי: <strong>${detected}</strong> (צריך להיות: <strong>${expected}</strong>)</div>`;
                 
                 if (contextBefore || contextAfter) {
@@ -549,8 +550,8 @@ export class UIManager {
                 const contextBefore = item.context_before || '';
                 const contextAfter = item.context_after || '';
                 const markerPos = item.marker_position;
-                
-                explanationText += `<div class="diff-missing-item" data-marker-pos="${markerPos ? JSON.stringify(markerPos) : ''}">`;
+                const safeChar = (missingChar + '').replace(/"/g, '&quot;');
+                explanationText += `<div class="diff-missing-item" data-marker-pos="${markerPos ? JSON.stringify(markerPos) : ''}" data-diff-type="missing" data-diff-text="${safeChar}" style="cursor: pointer;">`;
                 explanationText += `<div class="diff-missing-char">חסר: <strong>${missingChar}</strong></div>`;
                 if (contextBefore || contextAfter) {
                     explanationText += `<div class="diff-context">`;
@@ -578,8 +579,8 @@ export class UIManager {
                 const contextAfter = item.context_after || '';
                 const rect = item.rect || null;
                 const rectStr = rect ? JSON.stringify(rect) : '';
-                
-                explanationText += `<div class="diff-extra-item" data-rect="${rectStr}" style="cursor: pointer;">`;
+                const safeChar = (extraChar + '').replace(/"/g, '&quot;');
+                explanationText += `<div class="diff-extra-item" data-rect="${rectStr}" data-diff-type="extra" data-diff-text="${safeChar}" style="cursor: pointer;">`;
                 explanationText += `<div class="diff-extra-char">מיותר: <strong>${extraChar}</strong></div>`;
                 
                 if (contextBefore || contextAfter) {
@@ -686,12 +687,14 @@ export class UIManager {
             item.style.cursor = 'pointer';
             item.addEventListener('click', () => {
                 const markerPosStr = item.getAttribute('data-marker-pos');
+                const type = item.getAttribute('data-diff-type') || 'missing';
+                const text = (item.getAttribute('data-diff-text') || '').replace(/&quot;/g, '"');
                 if (markerPosStr && markerPosStr !== 'null' && markerPosStr !== '') {
                     try {
                         const markerPos = JSON.parse(markerPosStr);
                         if (markerPos && Array.isArray(markerPos) && markerPos.length === 4) {
-                            // Centrer et zoomer sur la position du marqueur
                             this.zoomToPosition(markerPos[0], markerPos[1], markerPos[2], markerPos[3]);
+                            setTimeout(() => this.showErrorTooltip(markerPos[0], markerPos[1], markerPos[2], markerPos[3], { type, text }), 180);
                         }
                     } catch (e) {
                         console.error('Erreur lors du parsing de la position:', e);
@@ -710,12 +713,14 @@ export class UIManager {
         extraItems.forEach((item) => {
             item.addEventListener('click', () => {
                 const rectStr = item.getAttribute('data-rect');
+                const type = item.getAttribute('data-diff-type') || 'extra';
+                const text = (item.getAttribute('data-diff-text') || '').replace(/&quot;/g, '"');
                 if (rectStr && rectStr !== 'null' && rectStr !== '') {
                     try {
                         const rect = JSON.parse(rectStr);
                         if (rect && Array.isArray(rect) && rect.length === 4) {
-                            // Centrer et zoomer sur la position du rectangle
                             this.zoomToPosition(rect[0], rect[1], rect[2], rect[3]);
+                            setTimeout(() => this.showErrorTooltip(rect[0], rect[1], rect[2], rect[3], { type, text }), 180);
                         }
                     } catch (e) {
                         console.error('Erreur lors du parsing de la position:', e);
@@ -734,12 +739,15 @@ export class UIManager {
         wrongItems.forEach((item) => {
             item.addEventListener('click', () => {
                 const rectStr = item.getAttribute('data-rect');
+                const type = item.getAttribute('data-diff-type') || 'wrong';
+                const text = (item.getAttribute('data-diff-text') || '').replace(/&quot;/g, '"');
+                const expected = (item.getAttribute('data-diff-expected') || '').replace(/&quot;/g, '"');
                 if (rectStr && rectStr !== 'null' && rectStr !== '') {
                     try {
                         const rect = JSON.parse(rectStr);
                         if (rect && Array.isArray(rect) && rect.length === 4) {
-                            // Centrer et zoomer sur la position du rectangle
                             this.zoomToPosition(rect[0], rect[1], rect[2], rect[3]);
+                            setTimeout(() => this.showErrorTooltip(rect[0], rect[1], rect[2], rect[3], { type, text, expected }), 180);
                         }
                     } catch (e) {
                         console.error('Erreur lors du parsing de la position:', e);
@@ -870,6 +878,28 @@ export class UIManager {
             
             // Ajouter un effet visuel
             this.highlightPosition(x, y, w, h);
+
+            // Remonter pour que la zone image soit visible (mobile / liste en bas)
+            const leftPanel = this.elements.leftPanel;
+            if (leftPanel) {
+                const rect = leftPanel.getBoundingClientRect();
+                const currentScroll = window.pageYOffset ?? document.documentElement.scrollTop;
+                const targetScroll = Math.max(0, currentScroll + rect.top - 10);
+                window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+                // Secours : si le scroll est dans un conteneur (ex. WebView), faire défiler l'ancêtre scrollable
+                let parent = leftPanel.parentElement;
+                while (parent && parent !== document.body) {
+                    const style = window.getComputedStyle(parent);
+                    const overflowY = style.overflowY || style.overflow;
+                    if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') {
+                        const parentRect = parent.getBoundingClientRect();
+                        const relTop = rect.top - parentRect.top + parent.scrollTop;
+                        parent.scrollTo({ top: Math.max(0, relTop - 10), behavior: 'smooth' });
+                        break;
+                    }
+                    parent = parent.parentElement;
+                }
+            }
         }, 100);
     }
     
@@ -922,6 +952,82 @@ export class UIManager {
                 highlight.parentNode.removeChild(highlight);
             }
         }, 3000);
+    }
+
+    /**
+     * Affiche un tooltip sur l'image au niveau de l'erreur (liste → image)
+     * @param {number} x - Position X (coords image)
+     * @param {number} y - Position Y (coords image)
+     * @param {number} w - Largeur
+     * @param {number} h - Hauteur
+     * @param {Object} content - { type: 'wrong'|'missing'|'extra', text: string, expected?: string }
+     */
+    showErrorTooltip(x, y, w, h, content) {
+        const existing = document.getElementById('error-tooltip-on-image');
+        if (existing) existing.remove();
+
+        const image = this.elements.displayImage;
+        const container = this.elements.imageZoomContainer;
+        if (!image || !container || !image.naturalWidth) return;
+
+        const imgRect = image.getBoundingClientRect();
+        const scaleX = imgRect.width / image.naturalWidth;
+        const scaleY = imgRect.height / image.naturalHeight;
+        const imgLeft = image.offsetLeft;
+        const imgTop = image.offsetTop;
+
+        let label = '';
+        let detail = '';
+        if (content.type === 'wrong') {
+            label = 'שגוי';
+            detail = `${content.text || ''} → צריך להיות: ${content.expected || ''}`;
+        } else if (content.type === 'missing') {
+            label = 'חסר';
+            detail = content.text ? `אות: ${content.text}` : 'אות חסרה';
+        } else if (content.type === 'extra') {
+            label = 'מיותר';
+            detail = content.text ? `אות: ${content.text}` : 'אות מיותרת';
+        } else {
+            detail = content.text || '';
+        }
+
+        const tooltip = document.createElement('div');
+        tooltip.id = 'error-tooltip-on-image';
+        tooltip.setAttribute('role', 'tooltip');
+        tooltip.innerHTML = `<strong>${label}</strong><br>${detail}`;
+        tooltip.style.cssText = `
+            position: absolute;
+            z-index: 1001;
+            background: rgba(0,0,0,0.9);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.4;
+            max-width: 220px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            white-space: normal;
+            pointer-events: auto;
+        `;
+
+        const tipW = 200;
+        const tipH = 50;
+        const left = imgLeft + x * scaleX;
+        const top = imgTop + y * scaleY;
+        const aboveY = top - tipH - 8;
+        const belowY = top + h * scaleY + 8;
+        tooltip.style.left = `${Math.max(8, left + (w * scaleX) / 2 - tipW / 2)}px`;
+        tooltip.style.top = `${aboveY >= imgTop ? aboveY : belowY}px`;
+        tooltip.style.width = `${tipW}px`;
+
+        const closeTooltip = () => {
+            if (tooltip.parentNode) tooltip.remove();
+            document.removeEventListener('click', closeTooltip);
+        };
+        setTimeout(closeTooltip, 8000);
+        setTimeout(() => document.addEventListener('click', closeTooltip), 0);
+
+        container.appendChild(tooltip);
     }
     
     /**
