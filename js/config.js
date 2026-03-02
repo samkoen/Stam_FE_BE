@@ -18,10 +18,8 @@ if (isNativeApp) {
         apiBaseUrl = FALLBACK_PROD_URL;
     }
 } else if (isLocalhost) {
-    // Localhost (ex. dev sur :3000) : utiliser VITE_API_URL si défini (Vercel, HF…), sinon backend local :8000
-    if (!apiBaseUrl || apiBaseUrl.includes('localhost')) {
-        apiBaseUrl = apiBaseUrl || 'http://localhost:8000';
-    }
+    // En localhost : toujours le serveur local (pas le HF), pour dev et auth locale
+    apiBaseUrl = 'http://localhost:8000';
 } else if (!apiBaseUrl) {
     apiBaseUrl = FALLBACK_PROD_URL;
 }
@@ -37,6 +35,9 @@ export const config = {
     hfToken: hfToken || undefined,
     API_URL: `${API_BASE_URL}/api/process-image`,
     API_DETECT_LETTERS: `${API_BASE_URL}/api/detect-letters`,
+    API_AUTH_REQUEST_LOGIN: `${API_BASE_URL}/api/auth/request-login`,
+    API_AUTH_SEND_CODE: `${API_BASE_URL}/api/auth/send-code`,
+    API_AUTH_VERIFY_CODE: `${API_BASE_URL}/api/auth/verify-code`,
     
     // Formats de fichiers acceptés
     ACCEPTED_FORMATS: ['image/jpeg', 'image/jpg', 'image/png'],

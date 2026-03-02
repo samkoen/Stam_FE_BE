@@ -130,6 +130,24 @@
             display: block;
             animation: shake 0.5s ease-out;
         }
+        
+        .login-actions {
+            display: flex;
+            gap: var(--spacing-md);
+            align-items: center;
+            margin-top: var(--spacing-lg);
+        }
+        .login-actions .login-btn { flex: 1; margin-top: 0; }
+        .login-back-btn {
+            padding: var(--spacing-md);
+            font-size: 1rem;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 2px solid var(--bg-secondary);
+            border-radius: var(--border-radius-lg);
+            cursor: pointer;
+        }
+        .login-back-btn:hover { opacity: 0.9; }
     </style>
 </head>
 <body>
@@ -152,12 +170,26 @@
                         required
                         autocomplete="email"
                     >
-                    <div class="error-message" id="errorMessage"></div>
                 </div>
-                
-                <button type="submit" class="login-btn" id="loginBtn">
-                    התחבר
-                </button>
+                <div class="form-group" id="codeGroup" style="display: none;">
+                    <label for="codeInput" class="form-label">קוד מאימייל:</label>
+                    <input 
+                        type="text" 
+                        id="codeInput" 
+                        class="form-input" 
+                        placeholder="הכנס את הקוד שקיבלת" 
+                        autocomplete="one-time-code"
+                        inputmode="numeric"
+                        maxlength="8"
+                    >
+                </div>
+                <div class="error-message" id="errorMessage"></div>
+                <div class="login-actions">
+                    <button type="button" class="login-back-btn" id="backBtn" style="display: none;">חזור</button>
+                    <button type="submit" class="login-btn" id="loginBtn">
+                        התחבר
+                    </button>
+                </div>
             </form>
         </div>
     </div>

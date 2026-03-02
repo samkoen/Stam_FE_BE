@@ -109,6 +109,74 @@ export class ApiService {
             throw error;
         }
     }
+
+    /**
+     * Demande de connexion : si l'email est déjà connu, pas de code ; sinon envoie un code.
+     * @param {string} email - Email du compte
+     * @returns {Promise<{ success: boolean, requiresCode: boolean, email?: string }>}
+     */
+    static async requestLogin(email) {
+        const response = await fetch(config.API_AUTH_REQUEST_LOGIN, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.trim().toLowerCase() })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const detail = parseDetail(data.detail);
+            console.warn('requestLogin error', response.status, data);
+            throw new Error(detail || 'שגיאה בהתחברות');
+        }
+        return { success: true, requiresCode: data.requiresCode, email: data.email };
+    }
+
+    /**
+     * Envoie un code de vérification à l'email de l'utilisateur (auth par email).
+     * @param {string} email - Email du compte
+     * @returns {Promise<{ success: boolean }>}
+     */
+    static async sendAuthCode(email) {
+        const response = await fetch(config.API_AUTH_SEND_CODE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.trim().toLowerCase() })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const detail = parseDetail(data.detail);
+            console.warn('sendAuthCode error', response.status, data);
+            throw new Error(detail || 'שגיאה בשליחת הקוד');
+        }
+        return { success: true, message: data.message };
+    }
+
+    /**
+     * Vérifie le code saisi et authentifie l'utilisateur.
+     * @param {string} email - Email du compte
+     * @param {string} code - Code reçu par email
+     * @returns {Promise<{ success: boolean, email: string }>}
+     */
+    static async verifyAuthCode(email, code) {
+        const response = await fetch(config.API_AUTH_VERIFY_CODE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.trim().toLowerCase(), code: (code || '').trim() })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const detail = parseDetail(data.detail);
+            throw new Error(detail || 'קוד לא תקין או שפג תוקף');
+        }
+        return { success: true, email: data.email };
+    }
+}
+
+/** FastAPI peut renvoyer detail en string ou en liste de { msg } */
+function parseDetail(detail) {
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail) && detail.length > 0 && detail[0].msg) return detail[0].msg;
+    if (Array.isArray(detail) && detail.length > 0 && detail[0].loc) return detail.map(d => d.msg || JSON.stringify(d)).join(', ');
+    return null;
 }
 
 function isNetworkError(error) {
