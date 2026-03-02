@@ -18,7 +18,10 @@ if (isNativeApp) {
         apiBaseUrl = FALLBACK_PROD_URL;
     }
 } else if (isLocalhost) {
-    apiBaseUrl = 'http://localhost:8000';
+    // Localhost (ex. dev sur :3000) : utiliser VITE_API_URL si défini (Vercel, HF…), sinon backend local :8000
+    if (!apiBaseUrl || apiBaseUrl.includes('localhost')) {
+        apiBaseUrl = apiBaseUrl || 'http://localhost:8000';
+    }
 } else if (!apiBaseUrl) {
     apiBaseUrl = FALLBACK_PROD_URL;
 }
