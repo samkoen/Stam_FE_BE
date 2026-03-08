@@ -1,33 +1,16 @@
 /**
  * Configuration de l'application.
  * VITE_API_URL et VITE_HF_TOKEN : définir dans .env
+ * Choix serveur API : voir api-server-selection.js (localhost → local, app → HF).
  */
-import { Capacitor } from '@capacitor/core';
+import { getApiBaseUrl } from './api-server-selection.js';
 
-const isNativeApp = Capacitor.getPlatform() !== 'web';
-const isLocalhost = window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1');
-
-const FALLBACK_PROD_URL = 'https://samkoen-stam-be.hf.space';
-
-let apiBaseUrl = (import.meta.env.VITE_API_URL || '').toString().trim();
 let hfToken = (import.meta.env.VITE_HF_TOKEN || '').toString().trim();
+const API_BASE_URL = getApiBaseUrl((import.meta.env.VITE_API_URL || '').toString().trim());
 
-// App native (Samsung / Capacitor) : toujours URL prod HTTPS (évite IP locale, localhost, timeouts)
-if (isNativeApp) {
-    if (!apiBaseUrl || !apiBaseUrl.startsWith('https') || apiBaseUrl.includes('localhost')) {
-        apiBaseUrl = FALLBACK_PROD_URL;
-    }
-} else if (isLocalhost) {
-    apiBaseUrl = 'http://localhost:8000';
-} else if (!apiBaseUrl) {
-    apiBaseUrl = FALLBACK_PROD_URL;
+if (typeof console !== 'undefined') {
+    console.log('[StamStam] API:', API_BASE_URL, 'token:', !!hfToken);
 }
-
-if (!apiBaseUrl.startsWith('http')) {
-    apiBaseUrl = FALLBACK_PROD_URL;
-}
-
-const API_BASE_URL = apiBaseUrl.replace(/\/$/, '');
 
 export const config = {
     API_BASE_URL,

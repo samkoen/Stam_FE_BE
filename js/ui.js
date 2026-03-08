@@ -2,7 +2,7 @@
  * Module de gestion de l'interface utilisateur
  */
 import { translateParachaName } from './config.js';
-import { isApp, enterAppResultsLayout, exitAppResultsLayout } from './appResultsLayout.js';
+import { enterAppResultsLayout, exitAppResultsLayout } from './appResultsLayout.js';
 
 export class UIManager {
     constructor() {
@@ -302,7 +302,7 @@ export class UIManager {
         this.elements.acceptCropBtn.style.display = 'none';
         this.elements.cancelCropBtn.style.display = 'none';
         this.resetZoom();
-        if (isApp()) enterAppResultsLayout();
+        enterAppResultsLayout();
     }
 
     /**
@@ -881,8 +881,8 @@ export class UIManager {
             // Ajouter un effet visuel
             this.highlightPosition(x, y, w, h);
 
-            // En app, l'image est toujours visible en haut → pas de scroll page
-            if (isApp()) return;
+            // En layout résultats (split), l'image est en haut → pas de scroll page
+            if (document.body.classList.contains('layout-app-results-active')) return;
             // Remonter pour que la zone image soit visible (mobile / liste en bas)
             const leftPanel = this.elements.leftPanel;
             if (leftPanel) {
@@ -1146,7 +1146,8 @@ export class UIManager {
         const loadingApp = document.getElementById('loadingSectionApp');
         const panelContent = document.getElementById('panelContentScrollable');
         if (show) {
-            if (isApp() && loadingApp && panelContent) {
+            const inResultsLayout = document.body.classList.contains('layout-app-results-active');
+            if (inResultsLayout && loadingApp && panelContent) {
                 loadingApp.style.display = 'flex';
                 panelContent.style.display = 'none';
             } else {

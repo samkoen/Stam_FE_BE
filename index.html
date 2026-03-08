@@ -12,6 +12,7 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/loading-scroll.css">
     <link rel="stylesheet" href="css/app-results.css">
 </head>
 <body>
@@ -23,7 +24,7 @@
                     StamStam
                 </h1>
                 <div class="user-info">
-                    <span id="userEmail" class="user-email"></span>
+                    <span id="userEmail" class="user-email" aria-hidden="true"></span>
                     <button id="logoutBtn" class="btn-logout" title="התנתק">🚪</button>
                 </div>
             </div>
@@ -77,6 +78,9 @@
                         </div>
                     </div>
 
+                    <div class="results-top-actions" id="resultsTopActions" style="display: none;">
+                        <button class="btn btn-secondary app-reset-btn" id="appResetBtn" title="תמונה חדשה">תמונה חדשה</button>
+                    </div>
                     <div class="image-viewer" id="imageViewer">
                         <div class="image-placeholder">
                             <div class="placeholder-icon">🖼️</div>
@@ -104,9 +108,9 @@
                         </div>
                     </div>
 
-                    <!-- État de chargement -->
+                    <!-- État de chargement (icône + styles : css/loading-scroll.css) -->
                     <section class="loading-section" id="loadingSection">
-                        <div class="loading-spinner"></div>
+                        <div class="loading-spinner" aria-hidden="true"></div>
                         <p class="loading-text">מנתח...</p>
                         <p class="loading-subtext">אנא המתן בזמן העיבוד</p>
                     </section>
@@ -129,22 +133,19 @@
                 <div class="right-results-panel" id="rightResultsPanel">
                     <div class="panel-header">
                         <h2 class="panel-title" id="panelTitleRight">תוצאות</h2>
-                        <button class="btn btn-secondary app-reset-btn" id="appResetBtn" title="תמונה חדשה" style="display: none;">
-                            תמונה חדשה
-                        </button>
                     </div>
 
                     <div class="loading-section-app" id="loadingSectionApp" style="display: none;">
-                        <div class="loading-spinner"></div>
+                        <div class="loading-spinner" aria-hidden="true"></div>
                         <p class="loading-text">מנתח...</p>
                         <p class="loading-subtext">אנא המתן בזמן העיבוד</p>
                     </div>
 
                     <div class="panel-content-scrollable" id="panelContentScrollable">
                         <div class="image-info" id="imageInfo" style="display: none;">
-                            <div class="info-item">
-                                <span class="info-label">פרשה מזוהה:</span>
-                                <span class="info-value" id="parachaName">-</span>
+                            <div class="info-item results-header">
+                                <span class="info-label" aria-hidden="true">פרשה מזוהה:</span>
+                                <span class="info-value results-paracha-name" id="parachaName">-</span>
                                 <span class="info-value status-pill" id="parachaStatus" style="margin-right:8px;"></span>
                                 <span class="info-value status-pill" id="errorsStatus" style="margin-right:8px;"></span>
                                 <span id="successMessage" style="display: none; margin-right: 10px;"></span>

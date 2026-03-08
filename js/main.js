@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { UIManager } from './ui.js';
-import { isApp, enterAppResultsLayout } from './appResultsLayout.js';
+import { enterAppResultsLayout } from './appResultsLayout.js';
 import { FileHandler } from './fileHandler.js';
 import { ApiService } from './api.js';
 import { config } from './config.js';
@@ -144,11 +144,11 @@ class App {
             });
         }
         
-        // Afficher l'email de l'utilisateur
+        // Email en tooltip du bouton התנתק
         const userEmailEl = document.getElementById('userEmail');
-        if (userEmailEl) {
-            userEmailEl.textContent = this.userEmail;
-        }
+        const logoutBtnEl = document.getElementById('logoutBtn');
+        if (userEmailEl) userEmailEl.textContent = this.userEmail;
+        if (logoutBtnEl) logoutBtnEl.title = this.userEmail ? `${this.userEmail} - התנתק` : 'התנתק';
 
         // Bouton de fermeture d'erreur
         this.ui.elements.errorCloseBtn.addEventListener('click', () => {
@@ -392,7 +392,9 @@ class App {
             try {
                 file = await FileHandler.fileToInMemory(file);
                 // Sur Android WebView, blob/data URLs n'affichent pas → utiliser base64ToDisplayUrl
-                if (Capacitor.getPlatform() !== 'web') {
+                let platform = 'web';
+                try { platform = Capacitor.getPlatform(); } catch (_) {}
+                if (platform !== 'web') {
                     const buf = await file.arrayBuffer();
                     const bytes = new Uint8Array(buf);
                     let binary = '';
@@ -436,14 +438,25 @@ class App {
      * Détecte les lettres dans l'image
      */
     async detectLetters() {
-        if (!this.currentFile) return;
-        if (isApp()) enterAppResultsLayout();
+        if (typeof console !== 'undefined') console.log('[StamStam] detectLetters cliqué');
+        if (!this.currentFile) {
+            if (typeof console !== 'undefined') console.warn('[StamStam] detectLetters: pas de fichier');
+            this.ui.showError('בחר תמונה קודם');
+            return;
+        }
+        // Afficher le loading tout de suite (spinner visible) puis passer au layout résultats
+        this.ui.showLoading(true);
+        this.ui.hideError();
         try {
-            this.ui.showLoading(true);
-            this.ui.hideError();
-
-            // Utiliser l'image coupée acceptée si disponible, sinon l'originale
+            enterAppResultsLayout();
+        } catch (e) {
+            if (typeof console !== 'undefined') console.warn('[StamStam] enterAppResultsLayout:', e);
+        }
+        // En layout résultats le spinner est dans le panneau droit ; le remettre à jour
+        this.ui.showLoading(true);
+        try {
             const fileToSend = this.acceptedCroppedFile || this.currentFile;
+            if (typeof console !== 'undefined') console.log('[StamStam] envoi requête...');
             const result = await ApiService.detectLetters(fileToSend, this.userEmail);
             
             this.currentImageBase64 = result.image;

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 56">
+  <defs>
+    <linearGradient id="pg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f5e6c8"/>
+      <stop offset="50%" stop-color="#e8d4a8"/>
+      <stop offset="100%" stop-color="#d4bc7a"/>
+    </linearGradient>
+    <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8b6914"/>
+      <stop offset="50%" stop-color="#c4a35a"/>
+      <stop offset="100%" stop-color="#6b5344"/>
+    </linearGradient>
+    <filter id="sf">
+      <feDropShadow dx="0" dy="2" stdDeviation="1" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <ellipse cx="16" cy="28" rx="8" ry="24" fill="url(#rg)" filter="url(#sf)"/>
+  <ellipse cx="64" cy="28" rx="8" ry="24" fill="url(#rg)" filter="url(#sf)"/>
+  <path d="M24 8L56 8Q60 8 60 12L60 44Q60 48 56 48L24 48Q20 48 20 44L20 12Q20 8 24 8Z" fill="url(#pg)" filter="url(#sf)"/>
+  <line x1="28" y1="20" x2="52" y2="20" stroke="#b8956e" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="28" y1="28" x2="48" y2="28" stroke="#b8956e" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="28" y1="36" x2="54" y2="36" stroke="#b8956e" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

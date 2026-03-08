@@ -70,6 +70,21 @@ body.layout-app-results-active {
     display: none !important;
 }
 
+/* Barre au-dessus de l'image : bouton תמונה חדשה centré */
+.results-top-actions {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+.results-top-actions .app-reset-btn {
+    padding: 6px 14px;
+    font-size: 0.85rem;
+}
+
 #mainLayout.layout-app-results .left-image-panel .image-viewer {
     flex: 1;
     min-height: 0;
@@ -117,16 +132,6 @@ body.layout-app-results-active {
     min-height: 120px;
 }
 
-.loading-section-app .loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 3px solid var(--bg-secondary);
-    border-top-color: var(--color-primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: var(--spacing-md);
-}
-
 #mainLayout.layout-app-results .right-results-panel .panel-content-scrollable {
     flex: 1;
     min-height: 0;
@@ -160,24 +165,24 @@ body.layout-app-results-active #checkDisclaimer { order: 1 !important; }
 body.layout-app-results-active #differencesInfo { order: 2 !important; }
 body.layout-app-results-active #legend { order: 3 !important; }
 
-/* 4. Police plus petite dans la liste des erreurs */
+/* 4. Taille police liste des erreurs (lisible) */
 body.layout-app-results-active .differences-section,
 body.layout-app-results-active .differences-explanation,
 body.layout-app-results-active #differencesInfo {
-    font-size: 0.85em !important;
+    font-size: 1.05em !important;
 }
 body.layout-app-results-active .diff-item,
 body.layout-app-results-active .diff-missing-item,
 body.layout-app-results-active .diff-extra-item,
 body.layout-app-results-active .diff-wrong-item,
 body.layout-app-results-active .diff-space-item {
-    font-size: 0.9em !important;
+    font-size: 1.1em !important;
 }
 body.layout-app-results-active .diff-missing-char,
 body.layout-app-results-active .diff-extra-char,
 body.layout-app-results-active .diff-wrong-char,
 body.layout-app-results-active .diff-context {
-    font-size: 1em !important;
+    font-size: 1.15em !important;
 }
 
 /* Fallback: appliquer aussi en vue mobile (max-width 1024px) pour tests navigateur */
@@ -190,8 +195,8 @@ body.layout-app-results-active .diff-context {
     #checkDisclaimer { order: 1 !important; }
     #differencesInfo { order: 2 !important; }
     #legend { order: 3 !important; }
-    .differences-section, .differences-explanation, #differencesInfo { font-size: 0.85em !important; }
-    .diff-item, .diff-missing-item, .diff-extra-item, .diff-wrong-item, .diff-space-item { font-size: 0.9em !important; }
+    .differences-section, .differences-explanation, #differencesInfo { font-size: 1.05em !important; }
+    .diff-item, .diff-missing-item, .diff-extra-item, .diff-wrong-item, .diff-space-item { font-size: 1.1em !important; }
 }
 
 #mainLayout.layout-app-results .panel-resizer,

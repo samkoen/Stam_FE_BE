@@ -140,6 +140,7 @@ body {
 }
 
 .user-email {
+    display: none; /* visible uniquement en tooltip sur התנתק */
     color: var(--text-secondary);
     font-size: 0.9rem;
     font-weight: 500;
@@ -488,6 +489,33 @@ body {
     background: var(--bg-primary);
     border-top: 2px solid var(--bg-secondary);
     font-size: 1.15em;
+}
+
+/* En-tête résultats : nom paracha au centre, statut en dessous centré */
+.results-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--spacing-sm);
+}
+.results-header .info-label { display: none; }
+.results-paracha-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+.results-header .status-pill,
+.results-header #successMessage {
+    display: block;
+    margin: 0.25em 0 0;
+}
+.results-header .info-value:not(.results-paracha-name) {
+    display: block;
+}
+
+/* Masquer le מקרא dans la partie résultats */
+#legend {
+    display: none !important;
 }
 
 .info-item {
@@ -847,6 +875,16 @@ body {
     text-align: center;
     color: rgba(255, 255, 255, 0.9);
     font-size: 0.9rem;
+}
+
+/* Première page : une seule colonne (gauche = upload), panneau droit caché jusqu'aux résultats */
+body:not(.layout-app-results-active) .right-results-panel,
+body:not(.layout-app-results-active) .panel-resizer {
+    display: none !important;
+}
+body:not(.layout-app-results-active) .left-image-panel {
+    flex: 1 1 100%;
+    max-width: none;
 }
 
 /* Responsive */

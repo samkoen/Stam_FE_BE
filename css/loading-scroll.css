@@ -1,0 +1,27 @@
+/**
+ * Icône de chargement "parchemin" au-dessus de "מנתח..."
+ * Visuel : loading-scroll.svg (même dossier). Animation ci-dessous.
+ */
+.loading-spinner {
+    display: block;
+    margin: 0 auto var(--spacing-lg);
+    width: 64px;
+    height: 45px;
+    min-height: 45px;
+    background: url("loading-scroll.svg") no-repeat center;
+    background-size: contain;
+    animation: scroll-reading 2s ease-in-out infinite;
+}
+
+@keyframes scroll-reading {
+    0%, 100% { transform: rotate(-3deg) scale(1); opacity: 1; }
+    50% { transform: rotate(3deg) scale(1.05); opacity: 0.95; }
+}
+
+/* Partie basse (app) : même icône, plus petite */
+.loading-section-app .loading-spinner {
+    margin-bottom: var(--spacing-md);
+    width: 52px;
+    height: 36px;
+    min-height: 36px;
+}

@@ -28,7 +28,9 @@ export function enterAppResultsLayout() {
     const container = document.querySelector('.app-container');
     if (container) container.classList.add(BODY_CLASS);
     const appResetBtn = document.getElementById('appResetBtn');
+    const resultsTopActions = document.getElementById('resultsTopActions');
     if (appResetBtn) appResetBtn.style.display = '';
+    if (resultsTopActions) resultsTopActions.style.display = 'block';
 }
 
 /**
@@ -41,7 +43,9 @@ export function exitAppResultsLayout() {
     const container = document.querySelector('.app-container');
     if (container) container.classList.remove(BODY_CLASS);
     const appResetBtn = document.getElementById('appResetBtn');
+    const resultsTopActions = document.getElementById('resultsTopActions');
     if (appResetBtn) appResetBtn.style.display = 'none';
+    if (resultsTopActions) resultsTopActions.style.display = 'none';
     const left = document.getElementById('leftImagePanel');
     const right = document.getElementById('rightResultsPanel');
     if (left) { left.style.flex = ''; left.style.flexBasis = ''; }

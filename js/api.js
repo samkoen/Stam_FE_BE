@@ -17,13 +17,13 @@ export class ApiService {
             console.log("URL utilisée :", config.API_URL);
             console.log("Token détecté :", config.hfToken ? "OUI" : "NON (Vide)");
 
+            const headers = {};
+            if (config.hfToken) headers['Authorization'] = `Bearer ${config.hfToken}`;
             const response = await fetch(config.API_URL, {
                 method: 'POST',
-                headers: {
-                    // On ajoute le Token ici
-                    'Authorization': `Bearer ${config.hfToken}`
-                },
-                body: formData
+                headers,
+                body: formData,
+                mode: 'cors'
             });
 
             if (!response.ok) {
@@ -55,6 +55,7 @@ export class ApiService {
      * @returns {Promise<Object>} Résultat avec l'image, les lettres détectées et le nom de la paracha
      */
     static async detectLetters(file, email) {
+        const url = config.API_DETECT_LETTERS;
         try {
             if (!email || !email.includes('@')) {
                 throw new Error('אימייל לא תקין');
@@ -67,11 +68,17 @@ export class ApiService {
             const headers = {};
             if (config.hfToken) headers['Authorization'] = `Bearer ${config.hfToken}`;
 
-            const response = await fetch(config.API_DETECT_LETTERS, {
+            console.log('[StamStam] POST', url);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000);
+            const response = await fetch(url, {
                 method: 'POST',
                 headers,
-                body: formData
+                body: formData,
+                mode: 'cors',
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -105,6 +112,7 @@ export class ApiService {
                 confusableAccepted: data.confusable_accepted || []
             };
         } catch (error) {
+            console.error('[StamStam] detectLetters error:', error?.message, error);
             if (isNetworkError(error)) throw new Error(config.MESSAGES.ERROR_NETWORK);
             throw error;
         }
