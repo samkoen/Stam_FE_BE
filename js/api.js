@@ -121,7 +121,8 @@ export class ApiService {
 
 function isNetworkError(error) {
     if (error instanceof TypeError) return true;
+    if (error?.name === 'AbortError') return true;
     const msg = (error?.message || '').toLowerCase();
-    return msg.includes('fetch') || msg.includes('network') || msg.includes('failed to load');
+    return msg.includes('fetch') || msg.includes('network') || msg.includes('failed to load') || msg.includes('aborted');
 }
 

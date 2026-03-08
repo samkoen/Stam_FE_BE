@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { UIManager } from './ui.js';
-import { enterAppResultsLayout } from './appResultsLayout.js';
+import { enterAppResultsLayout, exitAppResultsLayout } from './appResultsLayout.js';
 import { FileHandler } from './fileHandler.js';
 import { ApiService } from './api.js';
 import { config } from './config.js';
@@ -476,7 +476,10 @@ class App {
             );
             this.ui.elements.panelTitle.textContent = 'זיהוי אותיות';
         } catch (error) {
-            this.ui.showError(error.message || 'שגיאה בזיהוי האותיות');
+            exitAppResultsLayout();
+            const msg = (error?.message || '').toLowerCase();
+            const isNetwork = !error?.message || msg.includes('fetch') || msg.includes('network') || msg.includes('failed') || msg.includes('abort') || msg.includes('connection') || msg.includes('refused') || msg.includes('load');
+            this.ui.showError(isNetwork ? config.MESSAGES.ERROR_NETWORK : (error.message || 'שגיאה בזיהוי האותיות'));
         } finally {
             this.ui.showLoading(false);
         }
