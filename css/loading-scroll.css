@@ -10,12 +10,12 @@
     min-height: 45px;
     background: url("loading-scroll.svg") no-repeat center;
     background-size: contain;
-    animation: scroll-reading 2s ease-in-out infinite;
+    animation: scroll-reading 1.2s ease-in-out infinite;
 }
 
 @keyframes scroll-reading {
-    0%, 100% { transform: rotate(-3deg) scale(1); opacity: 1; }
-    50% { transform: rotate(3deg) scale(1.05); opacity: 0.95; }
+    0%, 100% { transform: rotate(-30deg) scale(1); opacity: 1; }
+    50% { transform: rotate(30deg) scale(1.05); opacity: 0.95; }
 }
 
 /* Partie basse (app) : même icône, plus petite */

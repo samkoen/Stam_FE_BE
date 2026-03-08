@@ -355,6 +355,13 @@
     font-size: 0.9rem;
 }
 
+.loading-disclaimer {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: var(--spacing-md);
+    max-width: 28em;
+}
+
 /* Error Section */
 .error-section {
     display: none;
