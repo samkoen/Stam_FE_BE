@@ -12,6 +12,7 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/app-results.css">
 </head>
 <body>
     <div class="app-container">
@@ -29,7 +30,7 @@
         </header>
 
         <main class="app-main">
-            <div class="main-layout">
+            <div class="main-layout" id="mainLayout">
                 <!-- Panneau gauche : Image -->
                 <div class="left-image-panel" id="leftImagePanel">
                     <div class="panel-header">
@@ -128,6 +129,15 @@
                 <div class="right-results-panel" id="rightResultsPanel">
                     <div class="panel-header">
                         <h2 class="panel-title" id="panelTitleRight">תוצאות</h2>
+                        <button class="btn btn-secondary app-reset-btn" id="appResetBtn" title="תמונה חדשה" style="display: none;">
+                            תמונה חדשה
+                        </button>
+                    </div>
+
+                    <div class="loading-section-app" id="loadingSectionApp" style="display: none;">
+                        <div class="loading-spinner"></div>
+                        <p class="loading-text">מנתח...</p>
+                        <p class="loading-subtext">אנא המתן בזמן העיבוד</p>
                     </div>
 
                     <div class="panel-content-scrollable" id="panelContentScrollable">

@@ -1,0 +1,224 @@
+/**
+ * Layout résultats pour l'app uniquement (Capacitor).
+ * Écran en 2 parties : image en haut fixe, liste d'erreurs en bas (seule zone qui défile).
+ * La classe .layout-app-results est ajoutée par js/appResultsLayout.js quand isApp() && résultats affichés.
+ */
+
+/* Bloquer le scroll de toute la page : seul le panneau du bas défile */
+body.layout-app-results-active {
+    height: 100vh;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+}
+
+.app-container.layout-app-results-active {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-container.layout-app-results-active .app-main {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: var(--spacing-md);
+}
+
+#mainLayout.layout-app-results {
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    height: 100%;
+}
+
+/* Partie haute : max hauteur pour l'image */
+#mainLayout.layout-app-results .left-image-panel {
+    flex: 1 1 auto;
+    height: 55%;
+    min-height: 180px;
+    max-height: none;
+    border-radius: var(--border-radius-xl) var(--border-radius-xl) 0 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Partie haute : UNIQUEMENT l'image - masquer tout sauf image-viewer */
+#mainLayout.layout-app-results .left-image-panel .panel-header {
+    display: none !important;
+}
+
+/* Forcer masquage des icônes zoom/crop (fallback) */
+#mainLayout.layout-app-results #zoomInBtn,
+#mainLayout.layout-app-results #zoomOutBtn,
+#mainLayout.layout-app-results #resetZoomBtn,
+#mainLayout.layout-app-results #cropBtn,
+#mainLayout.layout-app-results #downloadBtn,
+#mainLayout.layout-app-results .panel-actions {
+    display: none !important;
+}
+
+#mainLayout.layout-app-results .left-image-panel .panel-footer-left {
+    display: none !important;
+}
+
+#mainLayout.layout-app-results .left-image-panel .loading-section,
+#mainLayout.layout-app-results .left-image-panel .error-section {
+    display: none !important;
+}
+
+#mainLayout.layout-app-results .left-image-panel .image-viewer {
+    flex: 1;
+    min-height: 0;
+}
+
+#mainLayout.layout-app-results .right-results-panel {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border-radius: 0 0 var(--border-radius-xl) var(--border-radius-xl);
+}
+
+/* Header partie basse : masquer le titre "תמונה" à côté du bouton, garder bouton compact */
+#mainLayout.layout-app-results .right-results-panel .panel-header {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 6px 12px;
+    min-height: 36px;
+}
+
+#mainLayout.layout-app-results .right-results-panel .panel-header .panel-title {
+    display: none;
+}
+
+.app-reset-btn {
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    min-height: 24px;
+}
+
+/* Loading dans la partie basse (app) */
+.loading-section-app {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-2xl);
+    background: var(--bg-primary);
+    min-height: 120px;
+}
+
+.loading-section-app .loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid var(--bg-secondary);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: var(--spacing-md);
+}
+
+#mainLayout.layout-app-results .right-results-panel .panel-content-scrollable {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+}
+
+/* === PARTIE BASSE (app) - utiliser body.layout-app-results-active pour fiabilité === */
+
+/* 1. Masquer header "זיהוי אותיות" / "תוצאות הניתוח" */
+body.layout-app-results-active #rightResultsPanel .panel-header .panel-title,
+body.layout-app-results-active #panelTitleRight {
+    display: none !important;
+}
+
+/* 2. Masquer טקסט מזוהה + texte détecté */
+body.layout-app-results-active #detectedTextItem {
+    display: none !important;
+}
+
+/* 3. מקרא tout en bas : réordonner (imageInfo, disclaimer, erreurs, legend) */
+body.layout-app-results-active #panelContentScrollable {
+    display: flex !important;
+    flex-direction: column !important;
+}
+body.layout-app-results-active #imageInfo { order: 0 !important; }
+body.layout-app-results-active #checkDisclaimer { order: 1 !important; }
+body.layout-app-results-active #differencesInfo { order: 2 !important; }
+body.layout-app-results-active #legend { order: 3 !important; }
+
+/* 4. Police plus petite dans la liste des erreurs */
+body.layout-app-results-active .differences-section,
+body.layout-app-results-active .differences-explanation,
+body.layout-app-results-active #differencesInfo {
+    font-size: 0.85em !important;
+}
+body.layout-app-results-active .diff-item,
+body.layout-app-results-active .diff-missing-item,
+body.layout-app-results-active .diff-extra-item,
+body.layout-app-results-active .diff-wrong-item,
+body.layout-app-results-active .diff-space-item {
+    font-size: 0.9em !important;
+}
+body.layout-app-results-active .diff-missing-char,
+body.layout-app-results-active .diff-extra-char,
+body.layout-app-results-active .diff-wrong-char,
+body.layout-app-results-active .diff-context {
+    font-size: 1em !important;
+}
+
+/* Fallback: appliquer aussi en vue mobile (max-width 1024px) pour tests navigateur */
+@media (max-width: 1024px) {
+    #rightResultsPanel .panel-header .panel-title,
+    #panelTitleRight { display: none !important; }
+    #detectedTextItem { display: none !important; }
+    #panelContentScrollable { display: flex !important; flex-direction: column !important; }
+    #imageInfo { order: 0 !important; }
+    #checkDisclaimer { order: 1 !important; }
+    #differencesInfo { order: 2 !important; }
+    #legend { order: 3 !important; }
+    .differences-section, .differences-explanation, #differencesInfo { font-size: 0.85em !important; }
+    .diff-item, .diff-missing-item, .diff-extra-item, .diff-wrong-item, .diff-space-item { font-size: 0.9em !important; }
+}
+
+#mainLayout.layout-app-results .panel-resizer,
+body.layout-app-results-active .panel-resizer {
+    width: 100%;
+    min-height: 28px;
+    height: 28px;
+    cursor: row-resize;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+    position: relative;
+    z-index: 100;
+    flex-shrink: 0;
+    background: var(--bg-secondary);
+    border-left: none;
+    border-right: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.15);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+#mainLayout.layout-app-results .panel-resizer::before,
+body.layout-app-results-active .panel-resizer::before {
+    width: 40px;
+    height: 4px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}

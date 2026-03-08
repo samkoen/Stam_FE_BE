@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { UIManager } from './ui.js';
+import { isApp, enterAppResultsLayout } from './appResultsLayout.js';
 import { FileHandler } from './fileHandler.js';
 import { ApiService } from './api.js';
 import { config } from './config.js';
@@ -126,6 +127,14 @@ class App {
         this.ui.elements.resetBtn.addEventListener('click', () => {
             this.reset();
         });
+
+        // Bouton תמונה חדשה en layout app (même action que reset)
+        const appResetBtn = document.getElementById('appResetBtn');
+        if (appResetBtn) {
+            appResetBtn.addEventListener('click', () => {
+                this.reset();
+            });
+        }
         
         // Bouton de déconnexion
         const logoutBtn = document.getElementById('logoutBtn');
@@ -216,13 +225,12 @@ class App {
     }
 
     /**
-     * Configure le système de redimensionnement des panneaux
+     * Configure le système de redimensionnement des panneaux (souris + touch)
      */
     setupPanelResizer() {
         const resizer = this.ui.elements.panelResizer;
         const leftPanel = this.ui.elements.leftPanel;
         const rightPanel = this.ui.elements.rightPanel;
-        
         if (!resizer || !leftPanel || !rightPanel) return;
 
         let isResizing = false;
@@ -230,100 +238,80 @@ class App {
         let startY = 0;
         let startLeftPercent = 0;
         let isVertical = false;
+        const minSize = 150;
 
         const checkLayout = () => {
             const container = leftPanel.parentElement;
-            const computedStyle = window.getComputedStyle(container);
-            isVertical = computedStyle.flexDirection === 'column';
+            isVertical = window.getComputedStyle(container).flexDirection === 'column';
         };
 
-        resizer.addEventListener('mousedown', (e) => {
+        const isAppLayout = () => document.body.classList.contains('layout-app-results-active');
+
+        const onStart = (clientX, clientY) => {
+            if (!isAppLayout()) return;
             isResizing = true;
             resizer.classList.add('resizing');
-            startX = e.clientX;
-            startY = e.clientY;
+            startX = clientX;
+            startY = clientY;
             checkLayout();
-            
             const container = leftPanel.parentElement;
-            if (isVertical) {
-                const containerHeight = container.offsetHeight;
-                const resizerHeight = resizer.offsetHeight;
-                const availableHeight = containerHeight - resizerHeight;
-                startLeftPercent = (leftPanel.offsetHeight / availableHeight) * 100;
-                document.body.style.cursor = 'row-resize';
-            } else {
-                const containerWidth = container.offsetWidth;
-                const resizerWidth = resizer.offsetWidth;
-                const availableWidth = containerWidth - resizerWidth;
-                startLeftPercent = (leftPanel.offsetWidth / availableWidth) * 100;
-                document.body.style.cursor = 'col-resize';
-            }
-            document.body.style.userSelect = 'none';
-            e.preventDefault();
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-
-            const container = leftPanel.parentElement;
-            let delta = 0;
-            let containerSize = 0;
             const resizerSize = isVertical ? resizer.offsetHeight : resizer.offsetWidth;
-
-            if (isVertical) {
-                delta = e.clientY - startY;
-                containerSize = container.offsetHeight;
-            } else {
-                delta = e.clientX - startX;
-                containerSize = container.offsetWidth;
-            }
-
+            const containerSize = isVertical ? container.offsetHeight : container.offsetWidth;
             const availableSize = containerSize - resizerSize;
+            const leftSize = isVertical ? leftPanel.offsetHeight : leftPanel.offsetWidth;
+            startLeftPercent = (leftSize / availableSize) * 100;
+            document.body.style.userSelect = 'none';
+            document.body.style.cursor = isVertical ? 'row-resize' : 'col-resize';
+        };
 
-            // Calculer la nouvelle taille en pixels pour plus de précision
-            // En RTL, inverser le delta pour que tirer vers la droite agrandisse le panneau de droite
-            let newLeftSize = 0;
-            
-            if (isVertical) {
-                const startLeftSize = (startLeftPercent / 100) * availableSize;
-                newLeftSize = startLeftSize - delta;
-            } else {
-                const startLeftSize = (startLeftPercent / 100) * availableSize;
-                newLeftSize = startLeftSize - delta;
-            }
-
-            // Limites minimales et maximales
-            const minSize = 300;
-            const maxSize = availableSize - minSize;
-
-            if (newLeftSize < minSize) {
-                newLeftSize = minSize;
-            } else if (newLeftSize > maxSize) {
-                newLeftSize = maxSize;
-            }
-
+        const onMove = (clientX, clientY) => {
+            if (!isResizing || !isAppLayout()) return;
+            const container = leftPanel.parentElement;
+            const resizerSize = isVertical ? resizer.offsetHeight : resizer.offsetWidth;
+            const containerSize = isVertical ? container.offsetHeight : container.offsetWidth;
+            const availableSize = containerSize - resizerSize;
+            const delta = isVertical ? clientY - startY : clientX - startX;
+            const startLeftSize = (startLeftPercent / 100) * availableSize;
+            /* Vertical : glisser doigt vers bas (delta>0) = partie haute grandit */
+            const sign = isVertical ? 1 : -1;
+            let newLeftSize = startLeftSize + sign * delta;
+            newLeftSize = Math.max(minSize, Math.min(availableSize - minSize, newLeftSize));
             const newRightSize = availableSize - newLeftSize;
-
-            // Appliquer les nouvelles tailles en pixels pour plus de précision
-            // Utiliser flex-basis au lieu de width pour éviter les conflits
             leftPanel.style.flex = `0 0 ${newLeftSize}px`;
             leftPanel.style.flexBasis = `${newLeftSize}px`;
             rightPanel.style.flex = `0 0 ${newRightSize}px`;
             rightPanel.style.flexBasis = `${newRightSize}px`;
-            
-            // Forcer le recalcul du layout
-            leftPanel.offsetHeight;
-            rightPanel.offsetHeight;
-        });
+        };
 
-        document.addEventListener('mouseup', () => {
+        const onEnd = () => {
             if (isResizing) {
                 isResizing = false;
                 resizer.classList.remove('resizing');
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
             }
-        });
+        };
+
+        resizer.addEventListener('mousedown', (e) => { onStart(e.clientX, e.clientY); e.preventDefault(); });
+        document.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+        document.addEventListener('mouseup', onEnd);
+
+        resizer.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                onStart(e.touches[0].clientX, e.touches[0].clientY);
+                e.preventDefault();
+            }
+        }, { passive: false });
+        const handleTouchMove = (e) => {
+            if (isResizing && e.touches.length === 1) {
+                e.preventDefault();
+                onMove(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        };
+        document.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+        document.addEventListener('touchend', (e) => {
+            if (e.touches.length === 0) onEnd();
+        }, { passive: true });
     }
 
     /**
@@ -449,7 +437,7 @@ class App {
      */
     async detectLetters() {
         if (!this.currentFile) return;
-
+        if (isApp()) enterAppResultsLayout();
         try {
             this.ui.showLoading(true);
             this.ui.hideError();

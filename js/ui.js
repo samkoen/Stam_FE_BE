@@ -2,6 +2,7 @@
  * Module de gestion de l'interface utilisateur
  */
 import { translateParachaName } from './config.js';
+import { isApp, enterAppResultsLayout, exitAppResultsLayout } from './appResultsLayout.js';
 
 export class UIManager {
     constructor() {
@@ -301,6 +302,7 @@ export class UIManager {
         this.elements.acceptCropBtn.style.display = 'none';
         this.elements.cancelCropBtn.style.display = 'none';
         this.resetZoom();
+        if (isApp()) enterAppResultsLayout();
     }
 
     /**
@@ -879,6 +881,8 @@ export class UIManager {
             // Ajouter un effet visuel
             this.highlightPosition(x, y, w, h);
 
+            // En app, l'image est toujours visible en haut → pas de scroll page
+            if (isApp()) return;
             // Remonter pour que la zone image soit visible (mobile / liste en bas)
             const leftPanel = this.elements.leftPanel;
             if (leftPanel) {
@@ -886,7 +890,6 @@ export class UIManager {
                 const currentScroll = window.pageYOffset ?? document.documentElement.scrollTop;
                 const targetScroll = Math.max(0, currentScroll + rect.top - 10);
                 window.scrollTo({ top: targetScroll, behavior: 'smooth' });
-                // Secours : si le scroll est dans un conteneur (ex. WebView), faire défiler l'ancêtre scrollable
                 let parent = leftPanel.parentElement;
                 while (parent && parent !== document.body) {
                     const style = window.getComputedStyle(parent);
@@ -1034,6 +1037,7 @@ export class UIManager {
      * Réinitialise l'affichage de l'image
      */
     resetImageDisplay() {
+        exitAppResultsLayout();
         this.elements.displayImage.style.display = 'none';
         this.elements.imageZoomContainer.style.display = 'none';
         this.elements.imagePlaceholder.style.display = 'block';
@@ -1139,18 +1143,27 @@ export class UIManager {
      * @param {boolean} show - Afficher ou masquer
      */
     showLoading(show) {
+        const loadingApp = document.getElementById('loadingSectionApp');
+        const panelContent = document.getElementById('panelContentScrollable');
         if (show) {
-            this.elements.loadingSection.classList.add('active');
+            if (isApp() && loadingApp && panelContent) {
+                loadingApp.style.display = 'flex';
+                panelContent.style.display = 'none';
+            } else {
+                this.elements.loadingSection.classList.add('active');
+            }
             if (this.elements.detectLettersBtn) {
                 this.elements.detectLettersBtn.classList.add('loading');
                 this.elements.detectLettersBtn.disabled = true;
             }
         } else {
+            if (loadingApp && panelContent) {
+                loadingApp.style.display = 'none';
+                panelContent.style.display = '';
+            }
             this.elements.loadingSection.classList.remove('active');
             if (this.elements.detectLettersBtn) {
                 this.elements.detectLettersBtn.classList.remove('loading');
-                // Ne pas réactiver automatiquement ici, laisser l'appelant gérer si nécessaire
-                // ou réactiver si on suppose que la fin du chargement rend la main
                 this.elements.detectLettersBtn.disabled = false;
             }
         }
