@@ -33,7 +33,8 @@ export const config = {
         ERROR_PROCESS: 'שגיאה בעיבוד התמונה',
         ERROR_FORMAT: 'פורמט קובץ לא נתמך',
         ERROR_SIZE: 'הקובץ גדול מדי',
-        ERROR_NETWORK: 'שגיאת חיבור לשרת'
+        ERROR_NETWORK: 'שגיאת חיבור לשרת',
+        IMAGE_QUALITY_WARNING: 'התמונה בעייתית (אינה ברורה מספיק או חתוכה בצורה לא טובה). אנא צלם שוב תמונה ברורה וישרה.'
     },
     
     // Mapping des noms de paracha (latin -> hébreu)

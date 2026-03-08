@@ -6,11 +6,11 @@
     --color-secondary: #764ba2;
     --color-accent: #f093fb;
     
-    /* Couleurs de fond */
-    --bg-primary: #ffffff;
-    --bg-secondary: #f8f9ff;
+    /* Couleurs de fond (tons chauds : crème / beige) */
+    --bg-primary: #faf7f2;
+    --bg-secondary: #f2ede6;
     --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --bg-gradient-light: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    --bg-gradient-light: linear-gradient(135deg, #f8f5f0 0%, #e8e0d5 100%);
     
     /* Couleurs de texte */
     --text-primary: #2d3748;
@@ -74,6 +74,7 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background: var(--bg-gradient);
+    background-color: #e8e2da;
     min-height: 100vh;
     color: var(--text-primary);
     line-height: 1.6;
@@ -90,7 +91,7 @@ body {
 
 /* Header */
 .app-header {
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(250, 247, 242, 0.95);
     backdrop-filter: blur(10px);
     box-shadow: var(--shadow-md);
     padding: var(--spacing-sm) 0;

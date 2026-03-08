@@ -133,6 +133,8 @@ export class UIManager {
      * @param {Array} differences - Liste des différences trouvées
      */
     showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = [], displayImageUrl) {
+        const qualityEl = document.getElementById('imageQualityWarning');
+        if (qualityEl) qualityEl.style.display = 'none';
         this.lastDifferences = differences || [];
         this.lastConfusableAccepted = confusableAccepted || [];
         this.strictMode = false;
@@ -1171,6 +1173,32 @@ export class UIManager {
     }
 
     /**
+     * Affiche l'avertissement qualité image (image floue/mal coupée, trop d'erreurs).
+     * Garde l'image d'origine affichée à gauche.
+     * @param {string} message - Message d'avertissement
+     */
+    showImageQualityWarning(message) {
+        const loadingApp = document.getElementById('loadingSectionApp');
+        const panelContent = document.getElementById('panelContentScrollable');
+        const qualityEl = document.getElementById('imageQualityWarning');
+        const imageInfo = document.getElementById('imageInfo');
+        const legend = document.getElementById('legend');
+        const checkDisclaimer = document.getElementById('checkDisclaimer');
+        const differencesInfo = document.getElementById('differencesInfo');
+        if (loadingApp) loadingApp.style.display = 'none';
+        if (panelContent) panelContent.style.display = '';
+        if (imageInfo) imageInfo.style.display = 'none';
+        if (legend) legend.style.display = 'none';
+        if (checkDisclaimer) checkDisclaimer.style.display = 'none';
+        if (differencesInfo) differencesInfo.style.display = 'none';
+        if (qualityEl) {
+            const txt = qualityEl.querySelector('.quality-warning-text');
+            if (txt) txt.textContent = message;
+            qualityEl.style.display = 'block';
+        }
+    }
+
+    /**
      * Affiche une erreur
      * @param {string} message - Message d'erreur
      */
@@ -1251,6 +1279,8 @@ export class UIManager {
             differencesInfo.innerHTML = '';
             differencesInfo.style.display = 'none';
         }
+        const qualityEl = document.getElementById('imageQualityWarning');
+        if (qualityEl) qualityEl.style.display = 'none';
         
         if (this.elements.filterSpacesContainer) {
             this.elements.filterSpacesContainer.style.display = 'none';

@@ -464,11 +464,17 @@ class App {
             const fileToSend = this.acceptedCroppedFile || this.currentFile;
             if (typeof console !== 'undefined') console.log('[StamStam] envoi requête...');
             const result = await ApiService.detectLetters(fileToSend, this.userEmail);
-            
+            const errors = result.errors;
+            let errorCount = 0;
+            if (Array.isArray(errors)) errorCount = errors.length;
+            else if (errors && typeof errors === 'object') errorCount = (errors.missing || 0) + (errors.extra || 0) + (errors.wrong || 0);
+            const tooManyErrors = errorCount >= 30;
+            if (tooManyErrors) {
+                this.ui.showImageQualityWarning(config.MESSAGES.IMAGE_QUALITY_WARNING);
+                return;
+            }
             this.currentImageBase64 = result.image;
-            // URL d'affichage : sur Android, les data URLs échouent → utiliser convertFileSrc
             const displayImageUrl = await FileHandler.base64ToDisplayUrl(result.image);
-            // Afficher le résultat avec le nom de la paracha détectée, le texte et les différences
             this.ui.showResults(
                 result.image,
                 result.paracha,

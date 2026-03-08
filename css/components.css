@@ -494,6 +494,22 @@
     margin-bottom: 0;
 }
 
+/* Avertissement qualité image (trop d'erreurs, image floue) */
+.image-quality-warning {
+    padding: var(--spacing-xl);
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--border-radius-md);
+    margin: var(--spacing-md) 0;
+}
+.quality-warning-text {
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    line-height: 1.6;
+    margin: 0;
+    text-align: right;
+}
+
 /* Animations */
 @keyframes fadeIn {
     from {
