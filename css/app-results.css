@@ -4,9 +4,10 @@
  * La classe .layout-app-results est ajoutée par js/appResultsLayout.js quand isApp() && résultats affichés.
  */
 
-/* Bloquer le scroll de toute la page : seul le panneau du bas défile */
+/* Bloquer le scroll : seul le panneau du bas défile. Partie basse fixée au bas de l'écran. */
 body.layout-app-results-active {
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     position: fixed;
     width: 100%;
@@ -14,6 +15,7 @@ body.layout-app-results-active {
 
 .app-container.layout-app-results-active {
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -23,7 +25,7 @@ body.layout-app-results-active {
     flex: 1;
     min-height: 0;
     overflow: hidden;
-    padding: var(--spacing-md);
+    padding: 0 var(--spacing-md);
 }
 
 #mainLayout.layout-app-results {
@@ -34,12 +36,10 @@ body.layout-app-results-active {
     height: 100%;
 }
 
-/* Partie haute : max hauteur pour l'image */
+/* Partie haute : image (taille pilotée par le resizer, pas de plafond) */
 #mainLayout.layout-app-results .left-image-panel {
-    flex: 1 1 auto;
-    height: 55%;
-    min-height: 180px;
-    max-height: none;
+    flex: 0 0 42%;
+    min-height: 160px;
     border-radius: var(--border-radius-xl) var(--border-radius-xl) 0 0;
     overflow: hidden;
     display: flex;
@@ -90,13 +90,17 @@ body.layout-app-results-active {
     min-height: 0;
 }
 
+/* Partie basse : ancrée en bas de l'écran, aussi bas que possible */
 #mainLayout.layout-app-results .right-results-panel {
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     border-radius: 0 0 var(--border-radius-xl) var(--border-radius-xl);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    /* Forcer le bas du panneau au bas du viewport */
+    margin-bottom: 0;
 }
 
 /* Header partie basse : masquer le titre "תמונה" à côté du bouton, garder bouton compact */

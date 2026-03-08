@@ -238,7 +238,7 @@ class App {
         let startY = 0;
         let startLeftPercent = 0;
         let isVertical = false;
-        const minSize = 150;
+        const minSizePx = 20;
 
         const checkLayout = () => {
             const container = leftPanel.parentElement;
@@ -272,15 +272,21 @@ class App {
             const availableSize = containerSize - resizerSize;
             const delta = isVertical ? clientY - startY : clientX - startX;
             const startLeftSize = (startLeftPercent / 100) * availableSize;
-            /* Vertical : glisser doigt vers bas (delta>0) = partie haute grandit */
+            /* Vertical : glisser vers bas (delta>0) = partie haute grandit */
             const sign = isVertical ? 1 : -1;
             let newLeftSize = startLeftSize + sign * delta;
+            const minSize = isVertical ? minSizePx : 150;
             newLeftSize = Math.max(minSize, Math.min(availableSize - minSize, newLeftSize));
-            const newRightSize = availableSize - newLeftSize;
             leftPanel.style.flex = `0 0 ${newLeftSize}px`;
             leftPanel.style.flexBasis = `${newLeftSize}px`;
-            rightPanel.style.flex = `0 0 ${newRightSize}px`;
-            rightPanel.style.flexBasis = `${newRightSize}px`;
+            if (isVertical) {
+                rightPanel.style.flex = '1 1 0';
+                rightPanel.style.flexBasis = '0';
+            } else {
+                const newRightSize = availableSize - newLeftSize;
+                rightPanel.style.flex = `0 0 ${newRightSize}px`;
+                rightPanel.style.flexBasis = `${newRightSize}px`;
+            }
         };
 
         const onEnd = () => {
