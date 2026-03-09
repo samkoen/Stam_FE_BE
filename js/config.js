@@ -17,6 +17,7 @@ export const config = {
     hfToken: hfToken || undefined,
     API_URL: `${API_BASE_URL}/api/process-image`,
     API_DETECT_LETTERS: `${API_BASE_URL}/api/detect-letters`,
+    API_EXPORT_PDF: `${API_BASE_URL}/api/export-pdf`,
     
     // Formats de fichiers acceptés
     ACCEPTED_FORMATS: ['image/jpeg', 'image/jpg', 'image/png'],

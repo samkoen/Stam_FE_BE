@@ -160,6 +160,14 @@ class App {
             this.downloadResult();
         });
 
+        // Bouton הורד PDF
+        const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+        if (downloadPdfBtn) {
+            downloadPdfBtn.addEventListener('click', () => {
+                this.downloadPdf();
+            });
+        }
+
         // Bouton d'agrandissement (si existe)
         if (this.ui.elements.expandBtn) {
             this.ui.elements.expandBtn.addEventListener('click', () => {
@@ -484,7 +492,8 @@ class App {
                 result.hasErrors,
                 result.errors || null,
                 result.confusableAccepted || [],
-                displayImageUrl
+                displayImageUrl,
+                result.imageErrorsOnly || null
             );
             this.ui.elements.panelTitle.textContent = 'זיהוי אותיות';
         } catch (error) {
@@ -625,6 +634,28 @@ class App {
                 ? `resultat_${this.currentFile.name.replace(/\.[^/.]+$/, '')}.jpg`
                 : 'resultat.jpg';
             FileHandler.downloadImage(imageBase64, filename);
+        }
+    }
+
+    /**
+     * Télécharge le rapport PDF
+     */
+    async downloadPdf() {
+        const data = this.ui.lastPdfData;
+        if (!data) {
+            this.ui.showError('אין נתונים להורדה');
+            return;
+        }
+        try {
+            const blob = await ApiService.exportPdf(data);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'rapport-stam.pdf';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            this.ui.showError(e?.message || 'שגיאה בהורדת הדוח');
         }
     }
 

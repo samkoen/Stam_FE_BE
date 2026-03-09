@@ -103,6 +103,7 @@ export class ApiService {
             return {
                 success: true,
                 image: data.image,
+                imageErrorsOnly: data.image_errors_only || null,
                 paracha: data.paracha || 'לא זוהה',
                 text: data.text || '',
                 differences: data.differences || [],
@@ -116,6 +117,35 @@ export class ApiService {
             if (isNetworkError(error)) throw new Error(config.MESSAGES.ERROR_NETWORK);
             throw error;
         }
+    }
+
+    /**
+     * Télécharge un rapport PDF
+     * @param {Object} data - { image_errors_only, paracha, paracha_status, differences }
+     * @returns {Promise<Blob>} Le fichier PDF
+     */
+    static async exportPdf(data) {
+        const url = config.API_EXPORT_PDF;
+        const headers = { 'Content-Type': 'application/json' };
+        if (config.hfToken) headers['Authorization'] = `Bearer ${config.hfToken}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                image_errors_only: data.image_errors_only || '',
+                paracha: data.paracha || '',
+                paracha_status: data.paracha_status || '',
+                differences: data.differences || [],
+                errors: data.errors || null,
+                has_errors: data.has_errors
+            }),
+            mode: 'cors'
+        });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.detail || 'שגיאה בהורדת הדוח');
+        }
+        return response.blob();
     }
 }
 

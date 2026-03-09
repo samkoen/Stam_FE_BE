@@ -48,6 +48,7 @@ export class UIManager {
             filterSpacesContainer: document.getElementById('filterSpacesContainer'),
             panelResizer: document.getElementById('panelResizer'),
             strictModeContainer: document.getElementById('strictModeContainer'),
+            downloadPdfBtn: document.getElementById('downloadPdfBtn'),
             strictModeBtn: document.getElementById('strictModeBtn'),
             strictModeBtnText: document.getElementById('strictModeBtnText')
         };
@@ -113,8 +114,9 @@ export class UIManager {
         this.elements.panelTitle.textContent = 'תמונה נבחרה';
         this.elements.imageInfo.style.display = 'none';
         this.elements.legend.style.display = 'none';
-        if (this.elements.checkDisclaimer) this.elements.checkDisclaimer.style.display = 'none';
+        if (this.elements.checkDisclaimer)         if (this.elements.checkDisclaimer) this.elements.checkDisclaimer.style.display = 'none';
         this.elements.downloadBtn.style.display = 'none';
+        if (this.elements.downloadPdfBtn) this.elements.downloadPdfBtn.style.display = 'none';
         this.elements.zoomInBtn.style.display = 'none';
         this.elements.zoomOutBtn.style.display = 'none';
         this.elements.resetZoomBtn.style.display = 'none';
@@ -132,7 +134,15 @@ export class UIManager {
      * @param {string} detectedText - Texte hébreu détecté
      * @param {Array} differences - Liste des différences trouvées
      */
-    showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = [], displayImageUrl) {
+    showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = [], displayImageUrl, imageErrorsOnly = null) {
+        this.lastPdfData = {
+            image_errors_only: imageErrorsOnly || '',
+            paracha: parachaName || '',
+            paracha_status: parachaStatus || '',
+            differences: differences || [],
+            errors: errors || null,
+            has_errors: hasErrors
+        };
         const qualityEl = document.getElementById('imageQualityWarning');
         if (qualityEl) qualityEl.style.display = 'none';
         this.lastDifferences = differences || [];
@@ -206,7 +216,7 @@ export class UIManager {
                 const extra = errors.extra || 0;
                 const wrong = errors.wrong || 0;
                 const total = missing + extra + wrong;
-                errorsStatusEl.textContent = `שגיאות: ${total} (חסר ${missing}, מיותר ${extra}, שגוי ${wrong})`;
+                errorsStatusEl.textContent = `שגיאות: ${total} (חסרות: ${missing}, מיותרות: ${extra}, מוחלפות: ${wrong})`;
                 errorsStatusEl.className = 'info-value status-pill status-error';
             } else {
                 errorsStatusEl.textContent = '';
@@ -296,6 +306,9 @@ export class UIManager {
         this.elements.legend.style.display = 'block';
         if (this.elements.checkDisclaimer) this.elements.checkDisclaimer.style.display = 'block';
         this.elements.downloadBtn.style.display = 'inline-flex';
+        if (this.elements.downloadPdfBtn) {
+            this.elements.downloadPdfBtn.style.display = 'inline-flex';
+        }
         this.elements.zoomInBtn.style.display = 'inline-flex';
         this.elements.zoomOutBtn.style.display = 'inline-flex';
         this.elements.resetZoomBtn.style.display = 'inline-flex';
@@ -470,7 +483,7 @@ export class UIManager {
              
              // Si on a des erreurs de lettres OU (des erreurs d'espaces ET qu'on veut les voir)
              if (letterErrorsTotal > 0 || (showSpaces && spaceErrorsCount > 0)) {
-                 let statusText = `שגיאות: ${letterErrorsTotal} (חסר ${missingCount}, מיותר ${extraCount}, שגוי ${wrongCount})`;
+                 let statusText = `שגיאות: ${letterErrorsTotal} (חסרות: ${missingCount}, מיותרות: ${extraCount}, מוחלפות: ${wrongCount})`;
                  
                  if (showSpaces && spaceErrorsCount > 0) {
                      statusText += ` + ${spaceErrorsCount} רווחים`;
@@ -508,14 +521,14 @@ export class UIManager {
         explanationText += '<h4>הבדלים שנמצאו:</h4>';
         
         if (wrongCount > 0) {
+            const wrongItems = filteredDifferences.filter(d => d.type === 'wrong');
+            const wrongSectionLabel = wrongItems.length > 1 ? 'אותיות מוחלפות' : 'אות מוחלפת';
             explanationText += `<div class="diff-item diff-wrong">`;
             explanationText += `<span class="diff-icon">🟠</span>`;
-            explanationText += `<span class="diff-label">אותיות שגויות:</span>`;
+            explanationText += `<span class="diff-label">${wrongSectionLabel}:</span>`;
             explanationText += `<span class="diff-count">${wrongCount}</span>`;
             explanationText += `</div>`;
             
-            // Afficher les lettres fausses avec ce qui était attendu (cliquables)
-            const wrongItems = filteredDifferences.filter(d => d.type === 'wrong');
             wrongItems.forEach((item) => {
                 const detected = item.text || '';
                 const expected = item.expected || '';
@@ -526,7 +539,7 @@ export class UIManager {
                 const safeDet = (detected + '').replace(/"/g, '&quot;');
                 const safeExp = (expected + '').replace(/"/g, '&quot;');
                 explanationText += `<div class="diff-wrong-item" data-rect="${rectStr}" data-diff-type="wrong" data-diff-text="${safeDet}" data-diff-expected="${safeExp}" style="cursor: pointer;">`;
-                explanationText += `<div class="diff-wrong-char">שגוי: <strong>${detected}</strong> (צריך להיות: <strong>${expected}</strong>)</div>`;
+                explanationText += `<div class="diff-wrong-char">אות מוחלפת: <strong>${detected}</strong> (צריך להיות: <strong>${expected}</strong>)</div>`;
                 
                 if (contextBefore || contextAfter) {
                     explanationText += `<div class="diff-context">`;
@@ -541,14 +554,15 @@ export class UIManager {
         }
         
         if (missingCount > 0) {
+            // Afficher les lettres manquantes avec leur contexte (exclure les espaces)
+            const missingItems = filteredDifferences.filter(d => d.type === 'missing' && !isSpaceError(d));
+            const missingSectionLabel = missingItems.length > 1 ? 'אותיות חסרות' : 'אות חסרה';
             explanationText += `<div class="diff-item diff-missing">`;
             explanationText += `<span class="diff-icon">🔴</span>`;
-            explanationText += `<span class="diff-label">אותיות חסרות:</span>`;
+            explanationText += `<span class="diff-label">${missingSectionLabel}:</span>`;
             explanationText += `<span class="diff-count">${missingCount}</span>`;
             explanationText += `</div>`;
             
-            // Afficher les lettres manquantes avec leur contexte (exclure les espaces)
-            const missingItems = filteredDifferences.filter(d => d.type === 'missing' && !isSpaceError(d));
             missingItems.forEach((item, idx) => {
                 const missingChar = item.text || '';
                 const contextBefore = item.context_before || '';
@@ -556,7 +570,7 @@ export class UIManager {
                 const markerPos = item.marker_position;
                 const safeChar = (missingChar + '').replace(/"/g, '&quot;');
                 explanationText += `<div class="diff-missing-item" data-marker-pos="${markerPos ? JSON.stringify(markerPos) : ''}" data-diff-type="missing" data-diff-text="${safeChar}" style="cursor: pointer;">`;
-                explanationText += `<div class="diff-missing-char">חסר: <strong>${missingChar}</strong></div>`;
+                explanationText += `<div class="diff-missing-char">אות חסרה: <strong>${missingChar}</strong></div>`;
                 if (contextBefore || contextAfter) {
                     explanationText += `<div class="diff-context">`;
                     explanationText += `<span class="context-before">${contextBefore}</span>`;
@@ -569,14 +583,14 @@ export class UIManager {
         }
         
         if (extraCount > 0) {
+            const extraItems = filteredDifferences.filter(d => d.type === 'extra' && !isSpaceError(d));
+            const extraSectionLabel = extraItems.length > 1 ? 'אותיות מיותרות' : 'אות מיותרת';
             explanationText += `<div class="diff-item diff-extra">`;
             explanationText += `<span class="diff-icon">🔵</span>`;
-            explanationText += `<span class="diff-label">אותיות מיותרות:</span>`;
+            explanationText += `<span class="diff-label">${extraSectionLabel}:</span>`;
             explanationText += `<span class="diff-count">${extraCount}</span>`;
             explanationText += `</div>`;
             
-            // Afficher les lettres en trop (cliquables, exclure les espaces)
-            const extraItems = filteredDifferences.filter(d => d.type === 'extra' && !isSpaceError(d));
             extraItems.forEach((item) => {
                 const extraChar = item.text || '';
                 const contextBefore = item.context_before || '';
@@ -585,7 +599,7 @@ export class UIManager {
                 const rectStr = rect ? JSON.stringify(rect) : '';
                 const safeChar = (extraChar + '').replace(/"/g, '&quot;');
                 explanationText += `<div class="diff-extra-item" data-rect="${rectStr}" data-diff-type="extra" data-diff-text="${safeChar}" style="cursor: pointer;">`;
-                explanationText += `<div class="diff-extra-char">מיותר: <strong>${extraChar}</strong></div>`;
+                explanationText += `<div class="diff-extra-char">אות מיותרת: <strong>${extraChar}</strong></div>`;
                 
                 if (contextBefore || contextAfter) {
                     explanationText += `<div class="diff-context">`;
@@ -664,7 +678,7 @@ export class UIManager {
         explanationText += '<div class="diff-legend">';
         explanationText += '<div class="legend-item"><span class="legend-color" style="background: #00ff00;"></span> אותיות נכונות</div>';
         if (wrongCount > 0) {
-            explanationText += '<div class="legend-item"><span class="legend-color" style="background: #ffa500;"></span> אותיות שגויות</div>';
+            explanationText += '<div class="legend-item"><span class="legend-color" style="background: #ffa500;"></span> אותיות מוחלפות</div>';
         }
         explanationText += '<div class="legend-item"><span class="legend-color" style="background: #ff0000;"></span> אותיות חסרות</div>';
         explanationText += '<div class="legend-item"><span class="legend-color" style="background: #0000ff;"></span> אותיות מיותרות</div>';
@@ -984,13 +998,13 @@ export class UIManager {
         let label = '';
         let detail = '';
         if (content.type === 'wrong') {
-            label = 'שגוי';
+            label = 'אות מוחלפת';
             detail = `${content.text || ''} → צריך להיות: ${content.expected || ''}`;
         } else if (content.type === 'missing') {
-            label = 'חסר';
+            label = 'אות חסרה';
             detail = content.text ? `אות: ${content.text}` : 'אות חסרה';
         } else if (content.type === 'extra') {
-            label = 'מיותר';
+            label = 'אות מיותרת';
             detail = content.text ? `אות: ${content.text}` : 'אות מיותרת';
         } else {
             detail = content.text || '';
@@ -1046,8 +1060,9 @@ export class UIManager {
         this.elements.panelTitle.textContent = 'תצוגה מקדימה';
         this.elements.imageInfo.style.display = 'none';
         this.elements.legend.style.display = 'none';
-        if (this.elements.checkDisclaimer) this.elements.checkDisclaimer.style.display = 'none';
+        if (this.elements.checkDisclaimer)         if (this.elements.checkDisclaimer) this.elements.checkDisclaimer.style.display = 'none';
         this.elements.downloadBtn.style.display = 'none';
+        if (this.elements.downloadPdfBtn) this.elements.downloadPdfBtn.style.display = 'none';
         this.elements.zoomInBtn.style.display = 'none';
         this.elements.zoomOutBtn.style.display = 'none';
         this.elements.resetZoomBtn.style.display = 'none';
