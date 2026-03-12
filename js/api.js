@@ -128,16 +128,33 @@ export class ApiService {
      */
     static async exportPdf(data) {
         const url = config.API_EXPORT_PDF;
-        const headers = { 'Content-Type': 'application/json; charset=utf-8' };
+        const headers = { 'Content-Type': 'application/json' };
         if (config.hfToken) headers['Authorization'] = `Bearer ${config.hfToken}`;
-        const body = JSON.stringify({
+        const payload = {
             image_errors_only: data.image_errors_only || '',
             paracha: data.paracha || '',
             paracha_status: data.paracha_status || '',
             differences: data.differences || [],
             errors: data.errors || null,
             has_errors: data.has_errors
-        });
+        };
+        let body;
+        try {
+            const { Capacitor } = await import('@capacitor/core');
+            if (Capacitor.getPlatform() !== 'web') {
+                const utf8 = new TextEncoder().encode(JSON.stringify(payload));
+                let b64 = '';
+                const chunk = 8192;
+                for (let i = 0; i < utf8.length; i += chunk) {
+                    b64 += String.fromCharCode(...utf8.subarray(i, i + chunk));
+                }
+                body = JSON.stringify({ payload_b64: btoa(b64) });
+            } else {
+                body = JSON.stringify(payload);
+            }
+        } catch (_) {
+            body = JSON.stringify(payload);
+        }
         const response = await fetch(url, {
             method: 'POST',
             headers,
