@@ -532,6 +532,7 @@ export class UIManager {
             wrongItems.forEach((item) => {
                 const detected = item.text || '';
                 const expected = item.expected || '';
+                const displayText = item.display_text;
                 const contextBefore = item.context_before || '';
                 const contextAfter = item.context_after || '';
                 const rect = item.rect || null;
@@ -541,7 +542,9 @@ export class UIManager {
                 explanationText += `<div class="diff-wrong-item" data-rect="${rectStr}" data-diff-type="wrong" data-diff-text="${safeDet}" data-diff-expected="${safeExp}" style="cursor: pointer;">`;
                 explanationText += `<div class="diff-wrong-char">אות מוחלפת: <strong>${detected}</strong> (צריך להיות: <strong>${expected}</strong>)</div>`;
                 
-                if (contextBefore || contextAfter) {
+                if (displayText) {
+                    explanationText += `<div class="diff-context"><span class="context-full">${displayText}</span></div>`;
+                } else if (contextBefore || contextAfter) {
                     explanationText += `<div class="diff-context">`;
                     explanationText += `<span class="context-before">${contextBefore}</span>`;
                     explanationText += `<span class="context-wrong" style="color: #ffa500; font-weight: bold;">[${detected}]</span>`;
@@ -565,13 +568,16 @@ export class UIManager {
             
             missingItems.forEach((item, idx) => {
                 const missingChar = item.text || '';
+                const displayText = item.display_text;
                 const contextBefore = item.context_before || '';
                 const contextAfter = item.context_after || '';
                 const markerPos = item.marker_position;
                 const safeChar = (missingChar + '').replace(/"/g, '&quot;');
                 explanationText += `<div class="diff-missing-item" data-marker-pos="${markerPos ? JSON.stringify(markerPos) : ''}" data-diff-type="missing" data-diff-text="${safeChar}" style="cursor: pointer;">`;
                 explanationText += `<div class="diff-missing-char">אות חסרה: <strong>${missingChar}</strong></div>`;
-                if (contextBefore || contextAfter) {
+                if (displayText) {
+                    explanationText += `<div class="diff-context"><span class="context-full">${displayText}</span></div>`;
+                } else if (contextBefore || contextAfter) {
                     explanationText += `<div class="diff-context">`;
                     explanationText += `<span class="context-before">${contextBefore}</span>`;
                     explanationText += `<span class="context-missing">[${missingChar}]</span>`;
@@ -593,6 +599,7 @@ export class UIManager {
             
             extraItems.forEach((item) => {
                 const extraChar = item.text || '';
+                const displayText = item.display_text;
                 const contextBefore = item.context_before || '';
                 const contextAfter = item.context_after || '';
                 const rect = item.rect || null;
@@ -601,7 +608,9 @@ export class UIManager {
                 explanationText += `<div class="diff-extra-item" data-rect="${rectStr}" data-diff-type="extra" data-diff-text="${safeChar}" style="cursor: pointer;">`;
                 explanationText += `<div class="diff-extra-char">אות מיותרת: <strong>${extraChar}</strong></div>`;
                 
-                if (contextBefore || contextAfter) {
+                if (displayText) {
+                    explanationText += `<div class="diff-context"><span class="context-full">${displayText}</span></div>`;
+                } else if (contextBefore || contextAfter) {
                     explanationText += `<div class="diff-context">`;
                     explanationText += `<span class="context-before">${contextBefore}</span>`;
                     explanationText += `<span class="context-extra" style="color: #0000ff; font-weight: bold;">[${extraChar}]</span>`;
@@ -629,6 +638,7 @@ export class UIManager {
                 explanationText += `<div class="diff-subsection" style="margin-left: 20px; margin-top: 10px;">`;
                 explanationText += `<div class="diff-subtitle">רווחים חסרים (${missingSpaces.length}):</div>`;
                 missingSpaces.forEach((item) => {
+                    const displayText = item.display_text;
                     const contextBefore = item.context_before || '';
                     const contextAfter = item.context_after || '';
                     const markerPos = item.marker_position;
@@ -636,7 +646,9 @@ export class UIManager {
                     
                     explanationText += `<div class="diff-space-item" data-marker-pos="${markerPosStr}" style="cursor: pointer; margin: 5px 0; padding: 5px; background: #ffe6e6; border-radius: 4px;">`;
                     explanationText += `<div class="diff-space-char">חסר רווח</div>`;
-                    if (contextBefore || contextAfter) {
+                    if (displayText) {
+                        explanationText += `<div class="diff-context"><span class="context-full">${displayText}</span></div>`;
+                    } else if (contextBefore || contextAfter) {
                         explanationText += `<div class="diff-context">`;
                         explanationText += `<span class="context-before">${contextBefore}</span>`;
                         explanationText += `<span class="context-missing" style="color: #ff0000; font-weight: bold;">[ ]</span>`;
@@ -653,6 +665,7 @@ export class UIManager {
                 explanationText += `<div class="diff-subsection" style="margin-left: 20px; margin-top: 10px;">`;
                 explanationText += `<div class="diff-subtitle">רווחים מיותרים (${extraSpaces.length}):</div>`;
                 extraSpaces.forEach((item) => {
+                    const displayText = item.display_text;
                     const contextBefore = item.context_before || '';
                     const contextAfter = item.context_after || '';
                     const markerPos = item.marker_position;
@@ -662,7 +675,9 @@ export class UIManager {
                     
                     explanationText += `<div class="diff-space-item" data-marker-pos="${markerPosStr}" data-rect="${rectStr}" style="cursor: pointer; margin: 5px 0; padding: 5px; background: #e6f3ff; border-radius: 4px;">`;
                     explanationText += `<div class="diff-space-char">מיותר רווח</div>`;
-                    if (contextBefore || contextAfter) {
+                    if (displayText) {
+                        explanationText += `<div class="diff-context"><span class="context-full">${displayText}</span></div>`;
+                    } else if (contextBefore || contextAfter) {
                         explanationText += `<div class="diff-context">`;
                         explanationText += `<span class="context-before">${contextBefore}</span>`;
                         explanationText += `<span class="context-extra" style="color: #0000ff; font-weight: bold;">[ ]</span>`;

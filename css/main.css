@@ -771,6 +771,10 @@ body {
     color: #666;
 }
 
+.context-full {
+    color: #333;
+}
+
 @keyframes pulse {
     0%, 100% {
         opacity: 0.5;
