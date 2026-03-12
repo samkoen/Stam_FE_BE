@@ -33,6 +33,13 @@ export function getApiBaseUrl(envApiUrl = '') {
             return u.replace(/\/$/, '');
         return LOCAL_SERVER_DEFAULT;
     }
-    if (u.startsWith('http')) return u.replace(/\/$/, '');
+    if (u.startsWith('http')) {
+        const base = u.replace(/\/$/, '');
+        if (typeof window !== 'undefined' && window.location?.origin && base === window.location.origin) {
+            console.warn('[StamStam] VITE_API_URL pointe vers l\'app (même origine). Utilisation du serveur HF.');
+            return HF_SERVER_URL.replace(/\/$/, '');
+        }
+        return base;
+    }
     return HF_SERVER_URL.replace(/\/$/, '');
 }
