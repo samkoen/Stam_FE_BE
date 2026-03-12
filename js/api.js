@@ -67,6 +67,10 @@ export class ApiService {
 
             const headers = {};
             if (config.hfToken) headers['Authorization'] = `Bearer ${config.hfToken}`;
+            try {
+                const { Capacitor } = await import('@capacitor/core');
+                if (Capacitor.getPlatform() !== 'web') headers['X-Want-B64'] = 'true';
+            } catch (_) {}
 
             console.log('[StamStam] POST', url);
             const controller = new AbortController();
@@ -81,8 +85,13 @@ export class ApiService {
             clearTimeout(timeoutId);
 
             const rawBytes = await response.arrayBuffer();
-            const utf8Text = new TextDecoder('utf-8').decode(rawBytes);
-            const data = JSON.parse(utf8Text);
+            let data = JSON.parse(new TextDecoder('utf-8').decode(rawBytes));
+            if (data.body_b64) {
+                const bin = atob(data.body_b64);
+                const bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                data = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+            }
 
             if (!response.ok) {
                 const errorData = data || {};
