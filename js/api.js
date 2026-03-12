@@ -86,7 +86,9 @@ export class ApiService {
 
             const rawBytes = await response.arrayBuffer();
             let data = JSON.parse(new TextDecoder('utf-8').decode(rawBytes));
+            let pdfBase64 = null;
             if (data.body_b64) {
+                pdfBase64 = data.pdf_b64 || null;
                 const bin = atob(data.body_b64);
                 const bytes = new Uint8Array(bin.length);
                 for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -102,15 +104,6 @@ export class ApiService {
                 throw new Error('שגיאה בזיהוי האותיות');
             }
 
-            // Log pour déboguer
-            console.log('Réponse API detectLetters:', {
-                success: data.success,
-                hasImage: !!data.image,
-                paracha: data.paracha,
-                text: data.text,
-                textLength: data.text ? data.text.length : 0
-            });
-
             return {
                 success: true,
                 image: data.image,
@@ -121,7 +114,8 @@ export class ApiService {
                 parachaStatus: data.paracha_status || null,
                 hasErrors: data.has_errors ?? null,
                 errors: data.errors || null,
-                confusableAccepted: data.confusable_accepted || []
+                confusableAccepted: data.confusable_accepted || [],
+                pdfBase64
             };
         } catch (error) {
             console.error('[StamStam] detectLetters error:', error?.message, error);

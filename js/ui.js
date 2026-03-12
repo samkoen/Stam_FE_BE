@@ -134,7 +134,8 @@ export class UIManager {
      * @param {string} detectedText - Texte hébreu détecté
      * @param {Array} differences - Liste des différences trouvées
      */
-    showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = [], displayImageUrl, imageErrorsOnly = null) {
+    showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = [], displayImageUrl, imageErrorsOnly = null, pdfBase64 = null) {
+        this.lastPdfBase64 = pdfBase64 || null;
         const pdfImage = (imageErrorsOnly && String(imageErrorsOnly).trim().length > 200)
             ? imageErrorsOnly
             : (imageBase64 || '');

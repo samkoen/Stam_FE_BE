@@ -493,7 +493,8 @@ class App {
                 result.errors || null,
                 result.confusableAccepted || [],
                 displayImageUrl,
-                result.imageErrorsOnly || null
+                result.imageErrorsOnly || null,
+                result.pdfBase64 || null
             );
             this.ui.elements.panelTitle.textContent = 'זיהוי אותיות';
         } catch (error) {
@@ -641,6 +642,18 @@ class App {
      * Télécharge le rapport PDF
      */
     async downloadPdf() {
+        if (isApp() && this.ui.lastPdfBase64) {
+            try {
+                const bin = atob(this.ui.lastPdfBase64);
+                const arr = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+                const blob = new Blob([arr], { type: 'application/pdf' });
+                await FileHandler.saveAndSharePdf(blob, 'rapport-stam.pdf');
+            } catch (e) {
+                this.ui.showError(e?.message || 'שגיאה בהורדת הדוח');
+            }
+            return;
+        }
         const data = this.ui.lastPdfData;
         if (!data) {
             this.ui.showError('אין נתונים להורדה');
