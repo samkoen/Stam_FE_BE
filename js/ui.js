@@ -135,8 +135,11 @@ export class UIManager {
      * @param {Array} differences - Liste des différences trouvées
      */
     showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = [], displayImageUrl, imageErrorsOnly = null) {
+        const pdfImage = (imageErrorsOnly && String(imageErrorsOnly).trim().length > 200)
+            ? imageErrorsOnly
+            : (imageBase64 || '');
         this.lastPdfData = {
-            image_errors_only: imageErrorsOnly || '',
+            image_errors_only: pdfImage,
             paracha: parachaName || '',
             paracha_status: parachaStatus || '',
             differences: differences || [],

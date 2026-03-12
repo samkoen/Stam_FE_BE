@@ -1,6 +1,7 @@
 import { config } from './config.js';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 /**
  * Nettoie la chaîne base64 (préfixe data URL, espaces)
@@ -118,6 +119,35 @@ export class FileHandler {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    }
+
+    /**
+     * En app native : enregistre le PDF en cache et ouvre le partage pour que l'utilisateur
+     * choisisse où le sauver (Téléchargements, Drive, etc.).
+     * @param {Blob} blob - PDF en blob
+     * @param {string} filename - Nom du fichier (ex. rapport-stam.pdf)
+     * @returns {Promise<void>}
+     */
+    static async saveAndSharePdf(blob, filename = 'rapport-stam.pdf') {
+        const buf = await blob.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        const chunk = 8192;
+        for (let i = 0; i < bytes.length; i += chunk) {
+            binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+        }
+        const base64 = btoa(binary);
+        await Filesystem.writeFile({
+            path: filename,
+            data: base64,
+            directory: Directory.Cache
+        });
+        const { uri } = await Filesystem.getUri({ directory: Directory.Cache, path: filename });
+        await Share.share({
+            title: filename,
+            url: uri,
+            dialogTitle: 'שמור PDF'
+        });
     }
 }
 

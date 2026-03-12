@@ -80,12 +80,14 @@ export class ApiService {
             });
             clearTimeout(timeoutId);
 
+            const rawBytes = await response.arrayBuffer();
+            const utf8Text = new TextDecoder('utf-8').decode(rawBytes);
+            const data = JSON.parse(utf8Text);
+
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
+                const errorData = data || {};
                 throw new Error(errorData.detail || 'שגיאה בזיהוי האותיות');
             }
-
-            const data = await response.json();
 
             if (!data.success || !data.image) {
                 throw new Error('שגיאה בזיהוי האותיות');
@@ -126,19 +128,20 @@ export class ApiService {
      */
     static async exportPdf(data) {
         const url = config.API_EXPORT_PDF;
-        const headers = { 'Content-Type': 'application/json' };
+        const headers = { 'Content-Type': 'application/json; charset=utf-8' };
         if (config.hfToken) headers['Authorization'] = `Bearer ${config.hfToken}`;
+        const body = JSON.stringify({
+            image_errors_only: data.image_errors_only || '',
+            paracha: data.paracha || '',
+            paracha_status: data.paracha_status || '',
+            differences: data.differences || [],
+            errors: data.errors || null,
+            has_errors: data.has_errors
+        });
         const response = await fetch(url, {
             method: 'POST',
             headers,
-            body: JSON.stringify({
-                image_errors_only: data.image_errors_only || '',
-                paracha: data.paracha || '',
-                paracha_status: data.paracha_status || '',
-                differences: data.differences || [],
-                errors: data.errors || null,
-                has_errors: data.has_errors
-            }),
+            body,
             mode: 'cors'
         });
         if (!response.ok) {

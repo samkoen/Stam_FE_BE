@@ -1,5 +1,10 @@
 {
   "appId": "stambodek.app",
   "appName": "stambodek",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
 }

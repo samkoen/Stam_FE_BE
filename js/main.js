@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { UIManager } from './ui.js';
-import { enterAppResultsLayout, exitAppResultsLayout } from './appResultsLayout.js';
+import { enterAppResultsLayout, exitAppResultsLayout, isApp } from './appResultsLayout.js';
 import { FileHandler } from './fileHandler.js';
 import { ApiService } from './api.js';
 import { config } from './config.js';
@@ -648,12 +648,16 @@ class App {
         }
         try {
             const blob = await ApiService.exportPdf(data);
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'rapport-stam.pdf';
-            a.click();
-            URL.revokeObjectURL(url);
+            if (isApp()) {
+                await FileHandler.saveAndSharePdf(blob, 'rapport-stam.pdf');
+            } else {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'rapport-stam.pdf';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
         } catch (e) {
             this.ui.showError(e?.message || 'שגיאה בהורדת הדוח');
         }
