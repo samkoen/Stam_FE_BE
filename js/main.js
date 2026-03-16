@@ -6,6 +6,7 @@ import { ApiService } from './api.js';
 import { config } from './config.js';
 import { ImageCropper } from './imageCropper.js';
 import { takePhoto } from './camera.js';
+import { takePhotoWithScanner } from './cameraScanner.js';
 
 /**
  * Application principale
@@ -371,13 +372,22 @@ class App {
     }
 
     /**
-     * Prend une photo avec la caméra (Samsung/Android native)
+     * Prend une photo : scanner de documents (si config.useDocumentScanner) ou caméra.
      */
     async handleTakePhoto() {
         try {
-            const result = await takePhoto();
+            let result = null;
+            if (config.useDocumentScanner) {
+                try {
+                    result = await takePhotoWithScanner();
+                } catch (_) {
+                    result = null;
+                }
+            }
+            if (result == null) {
+                result = await takePhoto();
+            }
             if (result) {
-                // Utiliser displayUrl (data URL) pour l'affichage : plus fiable dans WebView Android
                 this.handleFileSelect(result.file, result.displayUrl);
             }
         } catch (error) {

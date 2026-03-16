@@ -12,9 +12,13 @@ if (typeof console !== 'undefined') {
     console.log('[StamStam] API:', API_BASE_URL, 'token:', !!hfToken);
 }
 
+const useDocumentScanner = (import.meta.env.VITE_USE_DOCUMENT_SCANNER === 'true' || import.meta.env.VITE_USE_DOCUMENT_SCANNER === '1');
+
 export const config = {
     API_BASE_URL,
     hfToken: hfToken || undefined,
+    /** true = utiliser le scanner de documents Capacitor au lieu de la caméra pour la prise de vue */
+    useDocumentScanner: !!useDocumentScanner,
     API_URL: `${API_BASE_URL}/api/process-image`,
     API_DETECT_LETTERS: `${API_BASE_URL}/api/detect-letters`,
     API_EXPORT_PDF: `${API_BASE_URL}/api/export-pdf`,
