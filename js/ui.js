@@ -1,7 +1,7 @@
 /**
  * Module de gestion de l'interface utilisateur
  */
-import { translateParachaName } from './config.js';
+import { translateParachaName, config } from './config.js';
 import { enterAppResultsLayout, exitAppResultsLayout } from './appResultsLayout.js';
 
 export class UIManager {
@@ -1230,6 +1230,51 @@ export class UIManager {
             if (txt) txt.textContent = message;
             qualityEl.style.display = 'block';
         }
+    }
+
+    /**
+     * Popup : choix de la paracha / megila / torah quand le serveur signale needs_manual_reference.
+     * @param {(apiKey: string) => void} onChoose - clé API (chema, chamoa, …, torah)
+     */
+    showManualParachaModal(onChoose) {
+        const prev = document.getElementById('manualParachaOverlay');
+        if (prev) prev.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'manualParachaOverlay';
+        overlay.setAttribute('dir', 'rtl');
+        overlay.style.cssText =
+            'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px;';
+        const box = document.createElement('div');
+        box.style.cssText =
+            'background:#fff;border-radius:12px;max-width:440px;width:100%;padding:20px;box-shadow:0 8px 32px rgba(0,0,0,.2);';
+        const title = document.createElement('p');
+        title.style.cssText = 'margin:0 0 16px;font-size:1.05rem;line-height:1.5;text-align:right;';
+        title.textContent = config.MESSAGES_MANUAL.TITLE;
+        box.appendChild(title);
+        const grid = document.createElement('div');
+        grid.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+        for (const { key, label } of config.MANUAL_REFERENCE_CHOICES) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = label;
+            btn.style.cssText =
+                'width:100%;padding:12px 14px;font-size:1rem;border:1px solid #ccc;border-radius:8px;background:#f8f9fa;cursor:pointer;text-align:right;';
+            btn.addEventListener('click', () => {
+                overlay.remove();
+                if (typeof onChoose === 'function') onChoose(key);
+            });
+            grid.appendChild(btn);
+        }
+        box.appendChild(grid);
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.textContent = config.MESSAGES_MANUAL.BTN_CANCEL;
+        cancel.style.cssText =
+            'margin-top:14px;width:100%;padding:10px;border:none;background:transparent;cursor:pointer;color:#666;';
+        cancel.addEventListener('click', () => overlay.remove());
+        box.appendChild(cancel);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
     }
 
     /**

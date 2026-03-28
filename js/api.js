@@ -54,7 +54,11 @@ export class ApiService {
      * @param {string} email - Email de l'utilisateur
      * @returns {Promise<Object>} Résultat avec l'image, les lettres détectées et le nom de la paracha
      */
-    static async detectLetters(file, email) {
+    /**
+     * @param {string} [forcedReference] - chema | chamoa | kadesh | kiyeviaha | mezuza | esther | torah
+     * @param {string|null} [inferenceResumeToken] - jeton 1er POST (needs_manual_reference) pour ne pas relancer le ML au 2e POST
+     */
+    static async detectLetters(file, email, forcedReference = null, inferenceResumeToken = null) {
         const url = config.API_DETECT_LETTERS;
         try {
             if (!email || !email.includes('@')) {
@@ -64,6 +68,13 @@ export class ApiService {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('email', email);
+            if (forcedReference && String(forcedReference).trim()) {
+                formData.append('forced_reference', String(forcedReference).trim().toLowerCase());
+                const tok = inferenceResumeToken && String(inferenceResumeToken).trim();
+                if (tok) {
+                    formData.append('inference_resume_token', tok);
+                }
+            }
 
             const headers = {};
             if (config.hfToken) headers['Authorization'] = `Bearer ${config.hfToken}`;
@@ -115,7 +126,11 @@ export class ApiService {
                 hasErrors: data.has_errors ?? null,
                 errors: data.errors || null,
                 confusableAccepted: data.confusable_accepted || [],
-                pdfBase64
+                pdfBase64,
+                needsManualReference: !!data.needs_manual_reference,
+                inferenceResumeToken: data.inference_resume_token || null,
+                /** false si STAMSTAM_SUPPORT_ALL_TEXT=false (pas de modale / 2e appel Esther-Torah) */
+                supportAllText: data.support_all_text !== false
             };
         } catch (error) {
             console.error('[StamStam] detectLetters error:', error?.message, error);

@@ -48,7 +48,26 @@ export const config = {
         'Chamoa': 'והיה אם שמע',
         'Kadesh': 'קדש לי כל בכור',
         'Kiyeviaha': 'והיה כי יבאך',
-        'Mezuza': 'מזוזה'
+        'Mezuza': 'מזוזה',
+        'Esther': 'מגילת אסתר',
+        'Torah': 'תורה',
+        'Non détectée': 'לא זוהה'
+    },
+
+    /** Choix manuel si needs_manual_reference (clé API = forced_reference) — libellés alignés sur overflow / PDF */
+    MANUAL_REFERENCE_CHOICES: [
+        { key: 'chema', label: 'שמע' },
+        { key: 'chamoa', label: 'והיה אם שמע' },
+        { key: 'kadesh', label: 'קדש לי כל בכור' },
+        { key: 'kiyeviaha', label: 'והיה כי יבאך' },
+        { key: 'mezuza', label: 'מזוזה' },
+        { key: 'esther', label: 'מגילת אסתר' },
+        { key: 'torah', label: 'תורה' }
+    ],
+
+    MESSAGES_MANUAL: {
+        TITLE: 'לא זוהתה פרשה. נא לבחור את סוג הטקסט שמופיע בתמונה:',
+        BTN_CANCEL: 'ביטול'
     }
 };
 

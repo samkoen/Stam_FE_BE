@@ -29,6 +29,8 @@ class App {
         this.croppedFile = null;
         this.acceptedCroppedFile = null; // Image coupée acceptée par l'utilisateur
         this.userEmail = userEmail;
+        /** Jeton API pour réutiliser la même inférence au 2e POST (réf. Torah / Esther / …) */
+        this._inferenceResumeToken = null;
         this.init();
     }
 
@@ -448,6 +450,7 @@ class App {
         // Réinitialiser le crop
         this.croppedFile = null;
         this.acceptedCroppedFile = null;
+        this._inferenceResumeToken = null;
         if (this.cropper) {
             this.cropper.remove();
             this.cropper = null;
@@ -460,8 +463,9 @@ class App {
 
     /**
      * Détecte les lettres dans l'image
+     * @param {string|null} forcedReference - clé API si l'utilisateur a choisi manuellement (2e appel)
      */
-    async detectLetters() {
+    async detectLetters(forcedReference = null) {
         if (typeof console !== 'undefined') console.log('[StamStam] detectLetters cliqué');
         if (!this.currentFile) {
             if (typeof console !== 'undefined') console.warn('[StamStam] detectLetters: pas de fichier');
@@ -469,6 +473,7 @@ class App {
             return;
         }
         // Afficher le loading tout de suite (spinner visible) puis passer au layout résultats
+        if (typeof console !== 'undefined' && forcedReference) console.log('[StamStam] forced_reference:', forcedReference);
         this.ui.showLoading(true);
         this.ui.hideError();
         try {
@@ -481,15 +486,51 @@ class App {
         try {
             const fileToSend = this.acceptedCroppedFile || this.currentFile;
             if (typeof console !== 'undefined') console.log('[StamStam] envoi requête...');
-            const result = await ApiService.detectLetters(fileToSend, this.userEmail);
+            const resumeTok = forcedReference ? this._inferenceResumeToken : null;
+            const result = await ApiService.detectLetters(
+                fileToSend,
+                this.userEmail,
+                forcedReference,
+                resumeTok
+            );
+            if (result.needsManualReference && !forcedReference && result.supportAllText) {
+                this._inferenceResumeToken = result.inferenceResumeToken || null;
+                this.ui.showLoading(false);
+                if (result.image) {
+                    const displayImageUrl = await FileHandler.base64ToDisplayUrl(result.image);
+                    this.ui.showResults(
+                        result.image,
+                        result.paracha,
+                        result.text || '',
+                        [],
+                        result.parachaStatus || null,
+                        result.hasErrors,
+                        result.errors || null,
+                        result.confusableAccepted || [],
+                        displayImageUrl,
+                        result.imageErrorsOnly || null,
+                        result.pdfBase64 || null
+                    );
+                    if (this.ui.elements.panelTitle) {
+                        this.ui.elements.panelTitle.textContent = 'זיהוי אותיות';
+                    }
+                }
+                this.ui.showManualParachaModal((key) => {
+                    this.detectLetters(key);
+                });
+                return;
+            }
             const errors = result.errors;
             let errorCount = 0;
             if (Array.isArray(errors)) errorCount = errors.length;
             else if (errors && typeof errors === 'object') errorCount = (errors.missing || 0) + (errors.extra || 0) + (errors.wrong || 0);
-            const tooManyErrors = errorCount >= 30;
+            const tooManyErrors = errorCount >= 100;
             if (tooManyErrors) {
                 this.ui.showImageQualityWarning(config.MESSAGES.IMAGE_QUALITY_WARNING);
                 return;
+            }
+            if (forcedReference) {
+                this._inferenceResumeToken = null;
             }
             this.currentImageBase64 = result.image;
             const displayImageUrl = await FileHandler.base64ToDisplayUrl(result.image);
