@@ -509,7 +509,8 @@ class App {
                         result.confusableAccepted || [],
                         displayImageUrl,
                         result.imageErrorsOnly || null,
-                        result.pdfBase64 || null
+                        result.pdfBase64 || null,
+                        !!result.referenceUserMismatch
                     );
                     if (this.ui.elements.panelTitle) {
                         this.ui.elements.panelTitle.textContent = 'זיהוי אותיות';
@@ -545,7 +546,8 @@ class App {
                 result.confusableAccepted || [],
                 displayImageUrl,
                 result.imageErrorsOnly || null,
-                result.pdfBase64 || null
+                result.pdfBase64 || null,
+                !!result.referenceUserMismatch
             );
             this.ui.elements.panelTitle.textContent = 'זיהוי אותיות';
         } catch (error) {

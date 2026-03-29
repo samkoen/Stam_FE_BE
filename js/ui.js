@@ -134,7 +134,7 @@ export class UIManager {
      * @param {string} detectedText - Texte hébreu détecté
      * @param {Array} differences - Liste des différences trouvées
      */
-    showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = [], displayImageUrl, imageErrorsOnly = null, pdfBase64 = null) {
+    showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = [], displayImageUrl, imageErrorsOnly = null, pdfBase64 = null, referenceUserMismatch = false) {
         this.lastPdfBase64 = pdfBase64 || null;
         const pdfImage = (imageErrorsOnly && String(imageErrorsOnly).trim().length > 200)
             ? imageErrorsOnly
@@ -177,18 +177,24 @@ export class UIManager {
         const errorsStatusEl = document.getElementById('errorsStatus');
         
         let hasRealErrors = false;
-        if (errors) {
-            hasRealErrors = (errors.missing || 0) + (errors.extra || 0) + (errors.wrong || 0) > 0;
-        } else if (differences && differences.length > 0) {
-            // Filtrer les espaces si nécessaire pour déterminer s'il y a de "vraies" erreurs
-            // Ici on considère tout ce qui est dans differences comme erreur par défaut
-            hasRealErrors = true;
+        if (!referenceUserMismatch) {
+            if (errors) {
+                hasRealErrors = (errors.missing || 0) + (errors.extra || 0) + (errors.wrong || 0) > 0;
+            } else if (differences && differences.length > 0) {
+                // Filtrer les espaces si nécessaire pour déterminer s'il y a de "vraies" erreurs
+                // Ici on considère tout ce qui est dans differences comme erreur par défaut
+                hasRealErrors = true;
+            }
         }
 
         // Déterminer la classe CSS du statut pour l'appliquer aussi à "ללא שגיאות"
         let statusClass = 'info-value status-pill';
         
-        if (parachaStatusEl) {
+        if (parachaStatusEl && referenceUserMismatch) {
+            parachaStatusEl.textContent = 'לא בוצע ניתוח השוואתי';
+            statusClass = 'info-value status-pill status-warning';
+            parachaStatusEl.className = statusClass;
+        } else if (parachaStatusEl) {
             // Si il y a des erreurs, afficher le message selon si complete ou incomplete
             if (hasRealErrors) {
                 if (parachaStatus === 'complete') {
@@ -212,7 +218,10 @@ export class UIManager {
             }
         }
         if (errorsStatusEl) {
-            if (hasErrors === false) {
+            if (referenceUserMismatch) {
+                errorsStatusEl.textContent = '';
+                errorsStatusEl.className = 'info-value status-pill';
+            } else if (hasErrors === false) {
                 errorsStatusEl.textContent = 'ללא שגיאות';
                 errorsStatusEl.className = statusClass; // Utiliser la même couleur que le statut
             } else if (errors) {
@@ -231,7 +240,11 @@ export class UIManager {
         // Afficher le message de succès en haut si pas de différences
         const successMessageEl = document.getElementById('successMessage');
         if (successMessageEl) {
-            if (!differences || differences.length === 0) {
+            if (referenceUserMismatch) {
+                successMessageEl.innerHTML =
+                    `<span class="info-value status-pill status-warning">${config.MESSAGES.REFERENCE_MISMATCH_ANALYSIS_SKIPPED}</span>`;
+                successMessageEl.style.display = 'inline-block';
+            } else if (!differences || differences.length === 0) {
                 // Utiliser la même classe CSS que le statut pour la cohérence des couleurs
                 const statusClassForMessage = statusClass || 'info-value status-pill status-success';
                 successMessageEl.innerHTML = `<span class="${statusClassForMessage}">✅ התוצאה מושלמת! 100% התאמה</span>`;

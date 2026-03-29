@@ -130,7 +130,8 @@ export class ApiService {
                 needsManualReference: !!data.needs_manual_reference,
                 inferenceResumeToken: data.inference_resume_token || null,
                 /** false si STAMSTAM_SUPPORT_ALL_TEXT=false (pas de modale / 2e appel Esther-Torah) */
-                supportAllText: data.support_all_text !== false
+                supportAllText: data.support_all_text !== false,
+                referenceUserMismatch: !!data.reference_user_mismatch,
             };
         } catch (error) {
             console.error('[StamStam] detectLetters error:', error?.message, error);
