@@ -85,7 +85,7 @@ export class ApiService {
 
             console.log('[StamStam] POST', url);
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 120000);
+            const timeoutId = setTimeout(() => controller.abort(), 240000);
             const response = await fetch(url, {
                 method: 'POST',
                 headers,
@@ -126,6 +126,7 @@ export class ApiService {
                 hasErrors: data.has_errors ?? null,
                 errors: data.errors || null,
                 confusableAccepted: data.confusable_accepted || [],
+                letterZones: data.letter_zones || [],
                 pdfBase64,
                 needsManualReference: !!data.needs_manual_reference,
                 inferenceResumeToken: data.inference_resume_token || null,

@@ -4,6 +4,11 @@
 import { translateParachaName, config } from './config.js';
 import { enterAppResultsLayout, exitAppResultsLayout } from './appResultsLayout.js';
 
+/** Longueur « lettres » hors espaces (fusion API : un mot = une entrée). */
+function _diffTextLetterLen(text) {
+    return String(text || '').replace(/\s/g, '').length;
+}
+
 export class UIManager {
     constructor() {
         this.elements = {
@@ -57,6 +62,12 @@ export class UIManager {
         this.lastDifferences = []; // Stocker les différences pour le filtrage
         this.lastConfusableAccepted = []; // Lettres acceptées uniquement par paires confondables (mode strict)
         this.strictMode = false;
+        this.lastLetterZones = [];
+        /** Clic sur l'image des résultats : tooltips comme la liste (coords naturelles = zoom OK). */
+        this._resultsInteractive = false;
+        if (this.elements.displayImage) {
+            this.elements.displayImage.addEventListener('click', (e) => this.onResultsImageClick(e));
+        }
         
         // Listener pour la checkbox de filtrage des espaces
         if (this.elements.showSpaceErrors) {
@@ -107,6 +118,8 @@ export class UIManager {
      * @param {string} imageUrl - URL de l'image (object URL ou base64)
      */
     showSelectedImage(imageUrl) {
+        this._resultsInteractive = false;
+        this.lastLetterZones = [];
         this.elements.displayImage.src = imageUrl;
         this.elements.displayImage.style.display = 'block';
         this.elements.imageZoomContainer.style.display = 'block';
@@ -134,7 +147,9 @@ export class UIManager {
      * @param {string} detectedText - Texte hébreu détecté
      * @param {Array} differences - Liste des différences trouvées
      */
-    showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = [], displayImageUrl, imageErrorsOnly = null, pdfBase64 = null, referenceUserMismatch = false) {
+    showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = [], displayImageUrl, imageErrorsOnly = null, pdfBase64 = null, referenceUserMismatch = false, letterZones = []) {
+        this._resultsInteractive = true;
+        this.lastLetterZones = Array.isArray(letterZones) ? letterZones : [];
         this.lastPdfBase64 = pdfBase64 || null;
         const pdfImage = (imageErrorsOnly && String(imageErrorsOnly).trim().length > 200)
             ? imageErrorsOnly
@@ -576,7 +591,9 @@ export class UIManager {
         if (missingCount > 0) {
             // Afficher les lettres manquantes avec leur contexte (exclure les espaces)
             const missingItems = filteredDifferences.filter(d => d.type === 'missing' && !isSpaceError(d));
-            const missingSectionLabel = missingItems.length > 1 ? 'אותיות חסרות' : 'אות חסרה';
+            const missingSectionPlural = missingItems.length > 1
+                || missingItems.some((it) => _diffTextLetterLen(it.text) > 1);
+            const missingSectionLabel = missingSectionPlural ? 'אותיות חסרות' : 'אות חסרה';
             explanationText += `<div class="diff-item diff-missing">`;
             explanationText += `<span class="diff-icon">🔴</span>`;
             explanationText += `<span class="diff-label">${missingSectionLabel}:</span>`;
@@ -591,7 +608,8 @@ export class UIManager {
                 const markerPos = item.marker_position;
                 const safeChar = (missingChar + '').replace(/"/g, '&quot;');
                 explanationText += `<div class="diff-missing-item" data-marker-pos="${markerPos ? JSON.stringify(markerPos) : ''}" data-diff-type="missing" data-diff-text="${safeChar}" style="cursor: pointer;">`;
-                explanationText += `<div class="diff-missing-char">אות חסרה: <strong>${missingChar}</strong></div>`;
+                const missingRowLabel = _diffTextLetterLen(missingChar) > 1 ? 'אותיות חסרות' : 'אות חסרה';
+                explanationText += `<div class="diff-missing-char">${missingRowLabel}: <strong>${missingChar}</strong></div>`;
                 if (displayText) {
                     explanationText += `<div class="diff-context"><span class="context-full">${displayText}</span></div>`;
                 } else if (contextBefore || contextAfter) {
@@ -607,7 +625,9 @@ export class UIManager {
         
         if (extraCount > 0) {
             const extraItems = filteredDifferences.filter(d => d.type === 'extra' && !isSpaceError(d));
-            const extraSectionLabel = extraItems.length > 1 ? 'אותיות מיותרות' : 'אות מיותרת';
+            const extraSectionPlural = extraItems.length > 1
+                || extraItems.some((it) => _diffTextLetterLen(it.text) > 1);
+            const extraSectionLabel = extraSectionPlural ? 'אותיות מיותרות' : 'אות מיותרת';
             explanationText += `<div class="diff-item diff-extra">`;
             explanationText += `<span class="diff-icon">🔵</span>`;
             explanationText += `<span class="diff-label">${extraSectionLabel}:</span>`;
@@ -623,7 +643,8 @@ export class UIManager {
                 const rectStr = rect ? JSON.stringify(rect) : '';
                 const safeChar = (extraChar + '').replace(/"/g, '&quot;');
                 explanationText += `<div class="diff-extra-item" data-rect="${rectStr}" data-diff-type="extra" data-diff-text="${safeChar}" style="cursor: pointer;">`;
-                explanationText += `<div class="diff-extra-char">אות מיותרת: <strong>${extraChar}</strong></div>`;
+                const extraRowLabel = _diffTextLetterLen(extraChar) > 1 ? 'אותיות מיותרות' : 'אות מיותרת';
+                explanationText += `<div class="diff-extra-char">${extraRowLabel}: <strong>${extraChar}</strong></div>`;
                 
                 if (displayText) {
                     explanationText += `<div class="diff-context"><span class="context-full">${displayText}</span></div>`;
@@ -846,6 +867,221 @@ export class UIManager {
             });
         });
     }
+
+    /**
+     * Clic sur l'image : tooltip comme la liste, sans changer le zoom (coords naturelles = OK avec zoom actuel).
+     */
+    onResultsImageClick(ev) {
+        if (!this._resultsInteractive) return;
+        const image = this.elements.displayImage;
+        if (!image || !image.naturalWidth) return;
+        const pt = this._naturalImagePointFromClient(ev.clientX, ev.clientY);
+        if (!pt) return;
+        ev.stopPropagation();
+        const errHit = this._hitTestDifferenceAt(pt.nx, pt.ny);
+        if (errHit) {
+            this._applyErrorHitFromImagePreserveZoom(errHit);
+            return;
+        }
+        const zone = this._hitTestGreenLetterZoneAt(pt.nx, pt.ny);
+        if (zone && zone.rect) {
+            const [x, y, w, h] = zone.rect;
+            setTimeout(() => this.showErrorTooltip(x, y, w, h, {
+                type: 'correct',
+                text: zone.text || '',
+            }), 10);
+        }
+    }
+
+    _naturalImagePointFromClient(clientX, clientY) {
+        const image = this.elements.displayImage;
+        if (!image || !image.naturalWidth || !image.naturalHeight) return null;
+        const r = image.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0) return null;
+        const lx = clientX - r.left;
+        const ly = clientY - r.top;
+        if (lx < 0 || ly < 0 || lx > r.width || ly > r.height) return null;
+        return {
+            nx: (lx / r.width) * image.naturalWidth,
+            ny: (ly / r.height) * image.naturalHeight,
+        };
+    }
+
+    _diffIsSpaceLetterError(d) {
+        const isSpace = d.text === ' ' || (d.text && d.text.trim() === '');
+        return (d.type === 'missing' || d.type === 'extra') && isSpace;
+    }
+
+    _differencesForImageHit() {
+        const showSpaces = this.elements.showSpaceErrors ? this.elements.showSpaceErrors.checked : false;
+        let list = (this.lastDifferences || []).filter((d) => {
+            if (showSpaces) return true;
+            return !this._diffIsSpaceLetterError(d);
+        });
+        if (this.strictMode && this.lastConfusableAccepted && this.lastConfusableAccepted.length > 0) {
+            const synthetic = this.lastConfusableAccepted.map((item) => ({
+                type: 'wrong',
+                text: item.detected_char || '',
+                expected: item.expected_char || '',
+                rect: item.rect || null,
+            }));
+            list = list.concat(synthetic);
+        }
+        return list;
+    }
+
+    _rectsForExtraDiff(d) {
+        const idxs = d.merged_rect_indices;
+        const zones = this.lastLetterZones || [];
+        if (idxs && idxs.length > 0 && zones.length > 0) {
+            const rects = [];
+            for (const i of idxs) {
+                const z = zones[i];
+                if (z && Array.isArray(z.rect)) rects.push(z.rect);
+            }
+            if (rects.length > 0) return rects;
+        }
+        return d.rect && Array.isArray(d.rect) ? [d.rect] : [];
+    }
+
+    _pointInRect(nx, ny, rect) {
+        if (!rect || rect.length < 4) return false;
+        const [x, y, w, h] = rect;
+        return nx >= x && nx <= x + w && ny >= y && ny <= y + h;
+    }
+
+    _hitTestDifferenceAt(nx, ny) {
+        const list = this._differencesForImageHit();
+        let best = null;
+        let bestArea = Infinity;
+        const bump = (rect, payload) => {
+            if (!this._pointInRect(nx, ny, rect)) return;
+            const ar = rect[2] * rect[3];
+            if (ar < bestArea) {
+                bestArea = ar;
+                best = payload;
+            }
+        };
+        for (const d of list) {
+            if (d.type === 'wrong' && d.rect) {
+                bump(d.rect, { kind: 'wrong', d, rect: d.rect });
+            } else if (d.type === 'extra') {
+                for (const r of this._rectsForExtraDiff(d)) {
+                    bump(r, { kind: 'extra', d, rect: r });
+                }
+            } else if (d.type === 'missing' && d.marker_position) {
+                bump(d.marker_position, { kind: 'missing', d, rect: d.marker_position });
+            }
+        }
+        return best;
+    }
+
+    _bgrIsGreen(bgr) {
+        if (!bgr || bgr.length < 3) return true;
+        return bgr[1] >= 160 && bgr[0] < 100 && bgr[2] < 100;
+    }
+
+    _hitTestGreenLetterZoneAt(nx, ny) {
+        let best = null;
+        let bestArea = Infinity;
+        for (const z of this.lastLetterZones || []) {
+            if (!z || !Array.isArray(z.rect)) continue;
+            if (!this._bgrIsGreen(z.bgr)) continue;
+            if (!this._pointInRect(nx, ny, z.rect)) continue;
+            const a = z.rect[2] * z.rect[3];
+            if (a < bestArea) {
+                bestArea = a;
+                best = z;
+            }
+        }
+        return best;
+    }
+
+    _applyErrorHitLikeList(hit) {
+        const { kind, d, rect } = hit;
+        if (!rect || rect.length < 4) return;
+        const [x, y, w, h] = rect;
+        if (kind === 'wrong') {
+            this.zoomToPosition(x, y, w, h);
+            setTimeout(() => this.showErrorTooltip(x, y, w, h, {
+                type: 'wrong',
+                text: d.text || '',
+                expected: d.expected || '',
+            }), 180);
+            return;
+        }
+        if (kind === 'extra') {
+            this.zoomToPosition(x, y, w, h);
+            setTimeout(() => this.showErrorTooltip(x, y, w, h, {
+                type: 'extra',
+                text: d.text || '',
+            }), 180);
+            return;
+        }
+        if (kind === 'missing') {
+            this.zoomToPosition(x, y, w, h);
+            setTimeout(() => this.showErrorTooltip(x, y, w, h, {
+                type: 'missing',
+                text: d.text || '',
+            }), 180);
+        }
+    }
+
+    /**
+     * Erreur cliquée sur l'image : garde zoomLevel, centre le scroll + tooltip (comportement liste sans re-zoom).
+     */
+    _applyErrorHitFromImagePreserveZoom(hit) {
+        const { kind, d, rect } = hit;
+        if (!rect || rect.length < 4) return;
+        const [x, y, w, h] = rect;
+        requestAnimationFrame(() => {
+            this._setViewerScrollToNaturalRectCenter(x, y, w, h);
+            this.highlightPosition(x, y, w, h);
+        });
+        const show = () => {
+            if (kind === 'wrong') {
+                this.showErrorTooltip(x, y, w, h, {
+                    type: 'wrong',
+                    text: d.text || '',
+                    expected: d.expected || '',
+                });
+            } else if (kind === 'extra') {
+                this.showErrorTooltip(x, y, w, h, { type: 'extra', text: d.text || '' });
+            } else if (kind === 'missing') {
+                this.showErrorTooltip(x, y, w, h, { type: 'missing', text: d.text || '' });
+            }
+        };
+        setTimeout(show, 10);
+    }
+
+    /**
+     * Centre la zone visible du viewer sur un rectangle (coords image naturelles), sans modifier le zoom.
+     */
+    _setViewerScrollToNaturalRectCenter(x, y, w, h) {
+        const imageViewer = this.elements.imageViewer;
+        const imageZoomContainer = this.elements.imageZoomContainer;
+        const image = this.elements.displayImage;
+        if (!imageViewer || !imageZoomContainer || !image || !image.naturalWidth || !image.naturalHeight) {
+            return;
+        }
+        const centerX = x + w / 2;
+        const centerY = y + h / 2;
+        const imgRect = image.getBoundingClientRect();
+        if (imgRect.width === 0 || image.naturalWidth === 0) return;
+        const actualScale = imgRect.width / image.naturalWidth;
+        const imgLeft = image.offsetLeft;
+        const imgTop = image.offsetTop;
+        const containerLeft = imageZoomContainer.offsetLeft;
+        const containerTop = imageZoomContainer.offsetTop;
+        const markerXInImage = centerX * actualScale;
+        const markerYInImage = centerY * actualScale;
+        const absoluteMarkerX = containerLeft + imgLeft + markerXInImage;
+        const absoluteMarkerY = containerTop + imgTop + markerYInImage;
+        const viewerWidth = imageViewer.clientWidth;
+        const viewerHeight = imageViewer.clientHeight;
+        imageViewer.scrollLeft = absoluteMarkerX - viewerWidth / 2;
+        imageViewer.scrollTop = absoluteMarkerY - viewerHeight / 2;
+    }
     
     /**
      * Zoom et centre sur une position spécifique dans l'image
@@ -862,10 +1098,6 @@ export class UIManager {
         if (!imageViewer || !imageZoomContainer || !image || !image.naturalWidth || !image.naturalHeight) {
             return;
         }
-        
-        // Calculer le centre du marqueur dans l'image originale
-        const centerX = x + w / 2;
-        const centerY = y + h / 2;
         
         // Obtenir les dimensions du conteneur de zoom
         const zoomContainerWidth = imageZoomContainer.clientWidth || imageZoomContainer.offsetWidth;
@@ -890,43 +1122,7 @@ export class UIManager {
         
         // Attendre que le zoom soit appliqué
         setTimeout(() => {
-            // Recalculer le scale réel (au cas où l'arrondi ou les scrollbars jouent)
-            const imgRect = image.getBoundingClientRect();
-            // Si l'image n'est pas affichée ou largeur nulle, éviter division par zéro
-            if (imgRect.width === 0 || image.naturalWidth === 0) return;
-            
-            const actualScale = imgRect.width / image.naturalWidth;
-            
-            // Position de l'image par rapport au container
-            // Cela prend en compte le margin: auto ou l'alignement flex
-            const imgLeft = image.offsetLeft;
-            const imgTop = image.offsetTop;
-            
-            // Position du container par rapport au viewer
-            const containerLeft = imageZoomContainer.offsetLeft;
-            const containerTop = imageZoomContainer.offsetTop;
-            
-            // Position du marqueur relative à l'image
-            const markerXInImage = centerX * actualScale;
-            const markerYInImage = centerY * actualScale;
-            
-            // Position absolue du marqueur dans l'espace de scroll du viewer
-            const absoluteMarkerX = containerLeft + imgLeft + markerXInImage;
-            const absoluteMarkerY = containerTop + imgTop + markerYInImage;
-            
-            // Dimensions de la zone visible du viewer
-            const viewerWidth = imageViewer.clientWidth;
-            const viewerHeight = imageViewer.clientHeight;
-            
-            // Calcul du scroll pour centrer
-            const targetScrollLeft = absoluteMarkerX - viewerWidth / 2;
-            const targetScrollTop = absoluteMarkerY - viewerHeight / 2;
-            
-            // Appliquer le scroll (le navigateur gère le clamping min/max)
-            imageViewer.scrollLeft = targetScrollLeft;
-            imageViewer.scrollTop = targetScrollTop;
-            
-            // Ajouter un effet visuel
+            this._setViewerScrollToNaturalRectCenter(x, y, w, h);
             this.highlightPosition(x, y, w, h);
 
             // En layout résultats (split), l'image est en haut → pas de scroll page
@@ -1029,15 +1225,22 @@ export class UIManager {
 
         let label = '';
         let detail = '';
-        if (content.type === 'wrong') {
+        if (content.type === 'correct') {
+            label = 'אות נכונה';
+            detail = content.text ? `אות: ${content.text}` : '';
+        } else if (content.type === 'wrong') {
             label = 'אות מוחלפת';
             detail = `${content.text || ''} → צריך להיות: ${content.expected || ''}`;
         } else if (content.type === 'missing') {
-            label = 'אות חסרה';
-            detail = content.text ? `אות: ${content.text}` : 'אות חסרה';
+            const raw = content.text || '';
+            const isSpace = raw === ' ' || (raw.length > 0 && raw.trim() === '');
+            label = isSpace ? 'רווח חסר' : 'אות חסרה';
+            detail = isSpace ? 'חסר רווח במיקום המסומן' : (raw ? `אות: ${raw}` : 'אות חסרה');
         } else if (content.type === 'extra') {
-            label = 'אות מיותרת';
-            detail = content.text ? `אות: ${content.text}` : 'אות מיותרת';
+            const raw = content.text || '';
+            const isSpace = raw === ' ' || (raw.length > 0 && raw.trim() === '');
+            label = isSpace ? 'רווח מיותר' : 'אות מיותרת';
+            detail = isSpace ? 'רווח עודף במיקום המסומן' : (raw ? `אות: ${raw}` : 'אות מיותרת');
         } else {
             detail = content.text || '';
         }
@@ -1085,6 +1288,8 @@ export class UIManager {
      * Réinitialise l'affichage de l'image
      */
     resetImageDisplay() {
+        this._resultsInteractive = false;
+        this.lastLetterZones = [];
         exitAppResultsLayout();
         this.elements.displayImage.style.display = 'none';
         this.elements.imageZoomContainer.style.display = 'none';
@@ -1403,6 +1608,7 @@ export class UIManager {
         
         this.lastDifferences = [];
         this.lastConfusableAccepted = [];
+        this.lastLetterZones = [];
         this.strictMode = false;
         if (this.elements.strictModeContainer) this.elements.strictModeContainer.style.display = 'none';
     }
