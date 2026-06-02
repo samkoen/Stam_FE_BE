@@ -149,7 +149,14 @@ export class UIManager {
      */
     showResults(imageBase64, parachaName, detectedText = '', differences = [], parachaStatus = null, hasErrors = null, errors = null, confusableAccepted = [], displayImageUrl, imageErrorsOnly = null, pdfBase64 = null, referenceUserMismatch = false, letterZones = []) {
         this._resultsInteractive = true;
-        this.lastLetterZones = Array.isArray(letterZones) ? letterZones : [];
+        const verificationSkipped =
+            parachaStatus === 'not_detected' ||
+            parachaName === 'Non détectée' ||
+            parachaName === 'Aucune lettre détectée' ||
+            parachaName === 'Aucune lettre valide détectée';
+        this.lastLetterZones = verificationSkipped
+            ? []
+            : (Array.isArray(letterZones) ? letterZones : []);
         this.lastPdfBase64 = pdfBase64 || null;
         const pdfImage = (imageErrorsOnly && String(imageErrorsOnly).trim().length > 200)
             ? imageErrorsOnly
@@ -192,7 +199,7 @@ export class UIManager {
         const errorsStatusEl = document.getElementById('errorsStatus');
         
         let hasRealErrors = false;
-        if (!referenceUserMismatch) {
+        if (!referenceUserMismatch && !verificationSkipped) {
             if (errors) {
                 hasRealErrors = (errors.missing || 0) + (errors.extra || 0) + (errors.wrong || 0) > 0;
             } else if (differences && differences.length > 0) {
@@ -207,6 +214,10 @@ export class UIManager {
         
         if (parachaStatusEl && referenceUserMismatch) {
             parachaStatusEl.textContent = 'לא בוצע ניתוח השוואתי';
+            statusClass = 'info-value status-pill status-warning';
+            parachaStatusEl.className = statusClass;
+        } else if (parachaStatusEl && verificationSkipped) {
+            parachaStatusEl.textContent = 'לא בוצעה בדיקת הפרשה';
             statusClass = 'info-value status-pill status-warning';
             parachaStatusEl.className = statusClass;
         } else if (parachaStatusEl) {
@@ -233,7 +244,7 @@ export class UIManager {
             }
         }
         if (errorsStatusEl) {
-            if (referenceUserMismatch) {
+            if (referenceUserMismatch || verificationSkipped) {
                 errorsStatusEl.textContent = '';
                 errorsStatusEl.className = 'info-value status-pill';
             } else if (hasErrors === false) {
@@ -258,6 +269,10 @@ export class UIManager {
             if (referenceUserMismatch) {
                 successMessageEl.innerHTML =
                     `<span class="info-value status-pill status-warning">${config.MESSAGES.REFERENCE_MISMATCH_ANALYSIS_SKIPPED}</span>`;
+                successMessageEl.style.display = 'inline-block';
+            } else if (verificationSkipped) {
+                successMessageEl.innerHTML =
+                    `<span class="info-value status-pill status-warning">${config.MESSAGES.VERIFICATION_NOT_DONE}</span>`;
                 successMessageEl.style.display = 'inline-block';
             } else if (!differences || differences.length === 0) {
                 // Utiliser la même classe CSS que le statut pour la cohérence des couleurs
@@ -554,7 +569,7 @@ export class UIManager {
         
         if (wrongCount > 0) {
             const wrongItems = filteredDifferences.filter(d => d.type === 'wrong');
-            const wrongSectionLabel = wrongItems.length > 1 ? 'אותיות מוחלפות' : 'אות מוחלפת';
+            const wrongSectionLabel = wrongItems.length > 1 ? 'מילים מוחלפות' : 'מילה מוחלפת';
             explanationText += `<div class="diff-item diff-wrong">`;
             explanationText += `<span class="diff-icon">🟠</span>`;
             explanationText += `<span class="diff-label">${wrongSectionLabel}:</span>`;
@@ -564,6 +579,8 @@ export class UIManager {
             wrongItems.forEach((item) => {
                 const detected = item.text || '';
                 const expected = item.expected || '';
+                const wordDetected = (item.word_detected || '').trim();
+                const wordExpected = (item.word_expected || '').trim();
                 const displayText = item.display_text;
                 const contextBefore = item.context_before || '';
                 const contextAfter = item.context_after || '';
@@ -572,7 +589,11 @@ export class UIManager {
                 const safeDet = (detected + '').replace(/"/g, '&quot;');
                 const safeExp = (expected + '').replace(/"/g, '&quot;');
                 explanationText += `<div class="diff-wrong-item" data-rect="${rectStr}" data-diff-type="wrong" data-diff-text="${safeDet}" data-diff-expected="${safeExp}" style="cursor: pointer;">`;
-                explanationText += `<div class="diff-wrong-char">אות מוחלפת: <strong>${detected}</strong> (צריך להיות: <strong>${expected}</strong>)</div>`;
+                if (wordDetected && wordExpected) {
+                    explanationText += `<div class="diff-wrong-char">מילה מזוהה: <strong>${wordDetected}</strong> (צריך להיות: <strong>${wordExpected}</strong>)</div>`;
+                } else {
+                    explanationText += `<div class="diff-wrong-char">אות מוחלפת: <strong>${detected}</strong> (צריך להיות: <strong>${expected}</strong>)</div>`;
+                }
                 
                 if (displayText) {
                     explanationText += `<div class="diff-context"><span class="context-full">${displayText}</span></div>`;
@@ -602,6 +623,8 @@ export class UIManager {
             
             missingItems.forEach((item, idx) => {
                 const missingChar = item.text || '';
+                const wordDetected = (item.word_detected || '').trim();
+                const wordExpected = (item.word_expected || '').trim();
                 const displayText = item.display_text;
                 const contextBefore = item.context_before || '';
                 const contextAfter = item.context_after || '';
@@ -609,7 +632,11 @@ export class UIManager {
                 const safeChar = (missingChar + '').replace(/"/g, '&quot;');
                 explanationText += `<div class="diff-missing-item" data-marker-pos="${markerPos ? JSON.stringify(markerPos) : ''}" data-diff-type="missing" data-diff-text="${safeChar}" style="cursor: pointer;">`;
                 const missingRowLabel = _diffTextLetterLen(missingChar) > 1 ? 'אותיות חסרות' : 'אות חסרה';
-                explanationText += `<div class="diff-missing-char">${missingRowLabel}: <strong>${missingChar}</strong></div>`;
+                if (wordDetected && wordExpected) {
+                    explanationText += `<div class="diff-missing-char">מילה מזוהה: <strong>${wordDetected}</strong> (צריך להיות: <strong>${wordExpected}</strong>)</div>`;
+                } else {
+                    explanationText += `<div class="diff-missing-char">${missingRowLabel}: <strong>${missingChar}</strong></div>`;
+                }
                 if (displayText) {
                     explanationText += `<div class="diff-context"><span class="context-full">${displayText}</span></div>`;
                 } else if (contextBefore || contextAfter) {
@@ -636,6 +663,8 @@ export class UIManager {
             
             extraItems.forEach((item) => {
                 const extraChar = item.text || '';
+                const wordDetected = (item.word_detected || '').trim();
+                const wordExpected = (item.word_expected || '').trim();
                 const displayText = item.display_text;
                 const contextBefore = item.context_before || '';
                 const contextAfter = item.context_after || '';
@@ -644,7 +673,11 @@ export class UIManager {
                 const safeChar = (extraChar + '').replace(/"/g, '&quot;');
                 explanationText += `<div class="diff-extra-item" data-rect="${rectStr}" data-diff-type="extra" data-diff-text="${safeChar}" style="cursor: pointer;">`;
                 const extraRowLabel = _diffTextLetterLen(extraChar) > 1 ? 'אותיות מיותרות' : 'אות מיותרת';
-                explanationText += `<div class="diff-extra-char">${extraRowLabel}: <strong>${extraChar}</strong></div>`;
+                if (wordDetected && wordExpected) {
+                    explanationText += `<div class="diff-extra-char">מילה מזוהה: <strong>${wordDetected}</strong> (צריך להיות: <strong>${wordExpected}</strong>)</div>`;
+                } else {
+                    explanationText += `<div class="diff-extra-char">${extraRowLabel}: <strong>${extraChar}</strong></div>`;
+                }
                 
                 if (displayText) {
                     explanationText += `<div class="diff-context"><span class="context-full">${displayText}</span></div>`;
@@ -731,7 +764,7 @@ export class UIManager {
         explanationText += '<div class="diff-legend">';
         explanationText += '<div class="legend-item"><span class="legend-color" style="background: #00ff00;"></span> אותיות נכונות</div>';
         if (wrongCount > 0) {
-            explanationText += '<div class="legend-item"><span class="legend-color" style="background: #ffa500;"></span> אותיות מוחלפות</div>';
+            explanationText += '<div class="legend-item"><span class="legend-color" style="background: #ffa500;"></span> מילים מוחלפות</div>';
         }
         explanationText += '<div class="legend-item"><span class="legend-color" style="background: #ff0000;"></span> אותיות חסרות</div>';
         explanationText += '<div class="legend-item"><span class="legend-color" style="background: #0000ff;"></span> אותיות מיותרות</div>';
