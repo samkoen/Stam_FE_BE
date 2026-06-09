@@ -734,8 +734,15 @@ class App {
     /**
      * Déconnexion de l'utilisateur
      */
-    logout() {
-        localStorage.removeItem('stamstam_user_email');
+    async logout() {
+        try {
+            const { logoutUser, clearUserSession } = await import('./auth.js');
+            await logoutUser();
+            clearUserSession();
+        } catch (_) {
+            localStorage.removeItem('stamstam_user_email');
+            localStorage.removeItem('stamstam_user_name');
+        }
         window.location.href = 'login.html';
     }
     

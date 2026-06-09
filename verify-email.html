@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>סתם סת"ם - אימות אימייל</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <style>
+        .login-container {
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: var(--bg-gradient); padding: var(--spacing-xl);
+        }
+        .login-card {
+            background: var(--bg-primary); border-radius: var(--border-radius-xl);
+            box-shadow: var(--shadow-2xl); padding: var(--spacing-2xl);
+            max-width: 450px; width: 100%; animation: fadeInUp 0.6s ease-out;
+        }
+        .login-header { text-align: center; margin-bottom: var(--spacing-2xl); }
+        .login-icon { font-size: 4rem; margin-bottom: var(--spacing-md); }
+        .login-title {
+            font-size: 2rem; font-weight: 700; background: var(--bg-gradient);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; margin-bottom: var(--spacing-sm);
+        }
+        .login-subtitle { color: var(--text-secondary); font-size: 1.1rem; }
+        .status-message { font-size: 1rem; text-align: right; line-height: 1.6; margin-bottom: var(--spacing-lg); }
+        .status-message.error { color: var(--color-error); }
+        .status-message.success { color: var(--color-success, #2e7d32); }
+        .status-message.loading { color: var(--text-secondary); }
+        .login-btn {
+            width: 100%; padding: var(--spacing-md); font-size: 1.1rem; font-weight: 600;
+            background: var(--bg-gradient); color: white; border: none;
+            border-radius: var(--border-radius-lg); cursor: pointer;
+            transition: all var(--transition-base); box-shadow: var(--shadow-lg);
+            text-decoration: none; display: inline-block; text-align: center; box-sizing: border-box;
+        }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-xl); }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-icon">✉️</div>
+                <h1 class="login-title">StamStam</h1>
+                <p class="login-subtitle">אימות אימייל</p>
+            </div>
+            <div class="status-message loading" id="statusMessage">מאמת...</div>
+            <a href="login.html" class="login-btn" id="loginLink" style="display:none">התחברות</a>
+        </div>
+    </div>
+    <script type="module" src="js/verify-email.js"></script>
+</body>
+</html>

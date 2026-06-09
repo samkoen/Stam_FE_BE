@@ -9,6 +9,15 @@ function _diffTextLetterLen(text) {
     return String(text || '').replace(/\s/g, '').length;
 }
 
+/** Affichage au niveau mot (plusieurs lettres / fusion API). */
+function _useWordLevelDiffItem(item) {
+    if (!item) return false;
+    const idxs = item.merged_rect_indices;
+    if (Array.isArray(idxs) && idxs.length > 1) return true;
+    if ((item.merged_letter_count || 0) > 1) return true;
+    return _diffTextLetterLen(item.text) > 1;
+}
+
 export class UIManager {
     constructor() {
         this.elements = {
@@ -589,8 +598,8 @@ export class UIManager {
                 const safeDet = (detected + '').replace(/"/g, '&quot;');
                 const safeExp = (expected + '').replace(/"/g, '&quot;');
                 explanationText += `<div class="diff-wrong-item" data-rect="${rectStr}" data-diff-type="wrong" data-diff-text="${safeDet}" data-diff-expected="${safeExp}" style="cursor: pointer;">`;
-                if (wordDetected && wordExpected) {
-                    explanationText += `<div class="diff-wrong-char">מילה מזוהה: <strong>${wordDetected}</strong> (צריך להיות: <strong>${wordExpected}</strong>)</div>`;
+                if (_useWordLevelDiffItem(item) && wordDetected && wordExpected) {
+                    explanationText += `<div class="diff-wrong-char">מילה בתמונה: <strong>${wordDetected}</strong> (במקור: <strong>${wordExpected}</strong>)</div>`;
                 } else {
                     explanationText += `<div class="diff-wrong-char">אות מוחלפת: <strong>${detected}</strong> (צריך להיות: <strong>${expected}</strong>)</div>`;
                 }
@@ -632,8 +641,8 @@ export class UIManager {
                 const safeChar = (missingChar + '').replace(/"/g, '&quot;');
                 explanationText += `<div class="diff-missing-item" data-marker-pos="${markerPos ? JSON.stringify(markerPos) : ''}" data-diff-type="missing" data-diff-text="${safeChar}" style="cursor: pointer;">`;
                 const missingRowLabel = _diffTextLetterLen(missingChar) > 1 ? 'אותיות חסרות' : 'אות חסרה';
-                if (wordDetected && wordExpected) {
-                    explanationText += `<div class="diff-missing-char">מילה מזוהה: <strong>${wordDetected}</strong> (צריך להיות: <strong>${wordExpected}</strong>)</div>`;
+                if (_useWordLevelDiffItem(item) && wordDetected && wordExpected) {
+                    explanationText += `<div class="diff-missing-char">מילה בתמונה: <strong>${wordDetected}</strong> (במקור: <strong>${wordExpected}</strong>)</div>`;
                 } else {
                     explanationText += `<div class="diff-missing-char">${missingRowLabel}: <strong>${missingChar}</strong></div>`;
                 }
@@ -673,8 +682,8 @@ export class UIManager {
                 const safeChar = (extraChar + '').replace(/"/g, '&quot;');
                 explanationText += `<div class="diff-extra-item" data-rect="${rectStr}" data-diff-type="extra" data-diff-text="${safeChar}" style="cursor: pointer;">`;
                 const extraRowLabel = _diffTextLetterLen(extraChar) > 1 ? 'אותיות מיותרות' : 'אות מיותרת';
-                if (wordDetected && wordExpected) {
-                    explanationText += `<div class="diff-extra-char">מילה מזוהה: <strong>${wordDetected}</strong> (צריך להיות: <strong>${wordExpected}</strong>)</div>`;
+                if (_useWordLevelDiffItem(item) && wordDetected && wordExpected) {
+                    explanationText += `<div class="diff-extra-char">מילה בתמונה: <strong>${wordDetected}</strong> (במקור: <strong>${wordExpected}</strong>)</div>`;
                 } else {
                     explanationText += `<div class="diff-extra-char">${extraRowLabel}: <strong>${extraChar}</strong></div>`;
                 }

@@ -1,61 +1,56 @@
 /**
  * Module de gestion de la page de login
  */
+import { loginUser, getStoredEmail, saveUserSession, AuthApiError } from './auth.js';
 
-// Vérifier si l'utilisateur est déjà connecté
 window.addEventListener('DOMContentLoaded', () => {
-    const userEmail = localStorage.getItem('stamstam_user_email');
-    if (userEmail) {
-        // Rediriger vers la page principale si déjà connecté
+    if (getStoredEmail()) {
         window.location.href = 'index.html';
     }
 });
 
-// Gestion du formulaire de login
-document.getElementById('loginForm').addEventListener('submit', (e) => {
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const emailInput = document.getElementById('emailInput');
+    const passwordInput = document.getElementById('passwordInput');
     const errorMessage = document.getElementById('errorMessage');
     const loginBtn = document.getElementById('loginBtn');
-    
+
     const email = emailInput.value.trim();
-    
-    // Valider l'email
+    const password = passwordInput.value;
+
     if (!email) {
         showError('אנא הכנס אימייל');
         return;
     }
-    
     if (!email.includes('@') || !email.includes('.')) {
         showError('אנא הכנס אימייל תקין');
         return;
     }
-    
-    // Désactiver le bouton pendant le traitement
+    if (!password) {
+        showError('אנא הכנס סיסמה');
+        return;
+    }
+
     loginBtn.disabled = true;
     loginBtn.textContent = 'מתחבר...';
     errorMessage.classList.remove('show');
-    
-    // Simuler une validation (pour l'instant, on accepte n'importe quel email valide)
-    // Plus tard, on pourra ajouter une vérification côté serveur
-    setTimeout(() => {
-        // Sauvegarder l'email dans localStorage
-        localStorage.setItem('stamstam_user_email', email);
-        
-        // Rediriger vers la page principale
+
+    try {
+        const data = await loginUser({ email, password });
+        saveUserSession(data.user);
         window.location.href = 'index.html';
-    }, 300);
+    } catch (err) {
+        showError(err instanceof AuthApiError ? err.message : 'שגיאה בהתחברות');
+    }
 });
 
 function showError(message) {
     const errorMessage = document.getElementById('errorMessage');
+    const loginBtn = document.getElementById('loginBtn');
     errorMessage.textContent = message;
     errorMessage.classList.add('show');
-    
-    // Réactiver le bouton
-    const loginBtn = document.getElementById('loginBtn');
     loginBtn.disabled = false;
     loginBtn.textContent = 'התחבר';
 }
-

@@ -151,6 +151,19 @@
                         placeholder="הכנס את האימייל שלך" 
                         required
                         autocomplete="email"
+                        style="direction: ltr; text-align: left;"
+                    >
+                </div>
+                <div class="form-group">
+                    <label for="passwordInput" class="form-label">סיסמה:</label>
+                    <input 
+                        type="password" 
+                        id="passwordInput" 
+                        class="form-input" 
+                        placeholder="הכנס את הסיסמה שלך" 
+                        required
+                        autocomplete="current-password"
+                        style="direction: ltr; text-align: left;"
                     >
                     <div class="error-message" id="errorMessage"></div>
                 </div>
@@ -159,6 +172,9 @@
                     התחבר
                 </button>
             </form>
+            <p style="text-align:center;margin-top:var(--spacing-lg);color:var(--text-secondary);">
+                אין לך חשבון? <a href="register.html" style="color:var(--color-primary);font-weight:600;text-decoration:none;">הרשמה</a>
+            </p>
         </div>
     </div>
     
