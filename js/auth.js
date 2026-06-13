@@ -12,13 +12,18 @@ export class AuthApiError extends Error {
 
 async function authFetch(path, options = {}) {
     const url = `${config.API_BASE_URL}${path}`;
+    const method = (options.method || 'GET').toUpperCase();
+    const headers = { ...(options.headers || {}) };
+    if (method !== 'GET' && method !== 'HEAD') {
+        headers['Content-Type'] = 'application/json';
+    }
+    if (config.hfToken) {
+        headers['Authorization'] = `Bearer ${config.hfToken}`;
+    }
     const res = await fetch(url, {
         ...options,
         credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-            ...(options.headers || {}),
-        },
+        headers,
     });
     if (!res.ok) {
         let detail = 'אירעה שגיאה';
@@ -60,7 +65,15 @@ export async function getCurrentUser() {
 }
 
 export async function verifyEmailToken(token) {
-    return authFetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+    const q = `token=${encodeURIComponent(token)}&format=json`;
+    return authFetch(`/api/auth/verify-email?${q}`);
+}
+
+export async function resendVerificationEmail(email) {
+    return authFetch('/api/auth/resend-verification', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+    });
 }
 
 export function saveUserSession(user) {

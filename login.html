@@ -130,6 +130,34 @@
             display: block;
             animation: shake 0.5s ease-out;
         }
+
+        .success-message {
+            color: var(--color-success, #2e7d32);
+            font-size: 0.9rem;
+            margin-top: var(--spacing-sm);
+            text-align: right;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .resend-wrap {
+            margin-top: var(--spacing-md);
+            text-align: center;
+            display: none;
+        }
+
+        .resend-btn {
+            background: none;
+            border: none;
+            color: var(--color-primary);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.95rem;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -166,6 +194,10 @@
                         style="direction: ltr; text-align: left;"
                     >
                     <div class="error-message" id="errorMessage"></div>
+                    <div class="success-message" id="successMessage"></div>
+                    <div class="resend-wrap" id="resendWrap">
+                        <button type="button" class="resend-btn" id="resendBtn">שלח שוב אימייל אימות</button>
+                    </div>
                 </div>
                 
                 <button type="submit" class="login-btn" id="loginBtn">
