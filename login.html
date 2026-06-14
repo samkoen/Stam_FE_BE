@@ -158,6 +158,117 @@
             font-size: 0.95rem;
             text-decoration: underline;
         }
+
+        .login-footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .login-footer-links a,
+        .support-link-btn {
+            color: var(--color-primary);
+            font-weight: 600;
+            text-decoration: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: inherit;
+            font-family: inherit;
+            padding: 0;
+        }
+
+        .support-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-lg);
+        }
+
+        .support-overlay.show {
+            display: flex;
+        }
+
+        .support-modal {
+            background: var(--bg-primary);
+            border-radius: var(--border-radius-xl);
+            box-shadow: var(--shadow-2xl);
+            padding: var(--spacing-xl);
+            max-width: 420px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .support-modal h2 {
+            margin: 0 0 var(--spacing-md);
+            font-size: 1.25rem;
+            text-align: center;
+            color: var(--text-primary);
+        }
+
+        .support-modal .form-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: var(--spacing-md);
+            font-size: 1rem;
+            border: 2px solid var(--bg-secondary);
+            border-radius: var(--border-radius-md);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            resize: vertical;
+            box-sizing: border-box;
+            text-align: right;
+            direction: rtl;
+            font-family: inherit;
+        }
+
+        .support-modal .form-textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+
+        .support-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-md);
+        }
+
+        .support-actions .login-btn {
+            margin-top: 0;
+            flex: 1;
+        }
+
+        .support-btn-secondary {
+            flex: 1;
+            padding: var(--spacing-md);
+            font-size: 1rem;
+            font-weight: 600;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: none;
+            border-radius: var(--border-radius-lg);
+            cursor: pointer;
+        }
+
+        .support-status {
+            font-size: 0.9rem;
+            margin-top: var(--spacing-sm);
+            text-align: right;
+            display: none;
+        }
+
+        .support-status.show { display: block; }
+        .support-status.error { color: var(--color-error); }
+        .support-status.success { color: var(--color-success, #2e7d32); }
     </style>
 </head>
 <body>
@@ -204,9 +315,42 @@
                     התחבר
                 </button>
             </form>
-            <p style="text-align:center;margin-top:var(--spacing-lg);color:var(--text-secondary);">
-                אין לך חשבון? <a href="register.html" style="color:var(--color-primary);font-weight:600;text-decoration:none;">הרשמה</a>
+            <div class="login-footer-links">
+                <span>אין לך חשבון? <a href="register.html">הרשמה</a></span>
+                <span>·</span>
+                <button type="button" class="support-link-btn" id="openSupportBtn">תמיכה</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="support-overlay" id="supportOverlay" aria-hidden="true">
+        <div class="support-modal" role="dialog" aria-labelledby="supportTitle">
+            <h2 id="supportTitle">פנייה לתמיכה</h2>
+            <p style="margin:0 0 var(--spacing-md);color:var(--text-secondary);font-size:0.95rem;text-align:right;">
+                ההודעה נשלחת לצוות התמיכה. נשתמש באימייל שלך כדי לחזור אליך.
             </p>
+            <div class="form-group">
+                <label for="supportEmailInput" class="form-label">האימייל שלך (למענה):</label>
+                <input type="email" id="supportEmailInput" class="form-input"
+                    placeholder="your@email.com" required autocomplete="email"
+                    style="direction: ltr; text-align: left;">
+            </div>
+            <div class="form-group">
+                <label for="supportPhoneInput" class="form-label">טלפון (אופציונלי):</label>
+                <input type="tel" id="supportPhoneInput" class="form-input"
+                    placeholder="050-0000000" autocomplete="tel"
+                    style="direction: ltr; text-align: left;">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label for="supportMessageInput" class="form-label">הודעה:</label>
+                <textarea id="supportMessageInput" class="form-textarea"
+                    placeholder="תאר את הבעיה..." minlength="10" maxlength="2000" required></textarea>
+            </div>
+            <div class="support-status" id="supportStatus"></div>
+            <div class="support-actions">
+                <button type="button" class="support-btn-secondary" id="closeSupportBtn">ביטול</button>
+                <button type="button" class="login-btn" id="sendSupportBtn">שלח</button>
+            </div>
         </div>
     </div>
     

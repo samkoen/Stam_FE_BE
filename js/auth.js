@@ -76,6 +76,17 @@ export async function resendVerificationEmail(email) {
     });
 }
 
+export async function sendSupportMessage({ email, message, phone }) {
+    return authFetch('/api/auth/support', {
+        method: 'POST',
+        body: JSON.stringify({
+            email,
+            message,
+            phone: phone || null,
+        }),
+    });
+}
+
 export function saveUserSession(user) {
     localStorage.setItem('stamstam_user_email', user.email);
     localStorage.setItem('stamstam_user_name', user.full_name || '');

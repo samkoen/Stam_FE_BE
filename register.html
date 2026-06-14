@@ -66,6 +66,51 @@
         .error-message { color: var(--color-error); }
         .success-message { color: var(--color-success, #2e7d32); }
         .error-message.show, .success-message.show { display: block; animation: fadeInUp 0.4s ease-out; }
+        .register-success-panel {
+            display: none;
+            text-align: right;
+            line-height: 1.65;
+            animation: fadeInUp 0.4s ease-out;
+        }
+        .register-success-panel.show { display: block; }
+        .register-success-panel h2 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--color-success, #2e7d32);
+            margin: 0 0 var(--spacing-md);
+            text-align: center;
+        }
+        .register-success-panel .success-intro {
+            margin: 0 0 var(--spacing-md);
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+        .register-success-panel .success-email {
+            direction: ltr;
+            text-align: center;
+            font-weight: 600;
+            color: var(--color-primary);
+            margin: 0 0 var(--spacing-lg);
+            word-break: break-all;
+        }
+        .register-success-steps {
+            margin: 0 0 var(--spacing-lg);
+            padding-right: 1.25rem;
+            color: var(--text-primary);
+        }
+        .register-success-steps li { margin-bottom: var(--spacing-sm); }
+        .register-success-note {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin: 0 0 var(--spacing-lg);
+        }
+        .register-success-panel .login-btn {
+            margin-top: 0;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            box-sizing: border-box;
+        }
         .auth-link { text-align: center; margin-top: var(--spacing-lg); color: var(--text-secondary); }
         .auth-link a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
     </style>
@@ -97,10 +142,23 @@
                     <input type="tel" id="phoneInput" class="form-input ltr" placeholder="050-0000000" autocomplete="tel">
                 </div>
                 <div class="error-message" id="errorMessage"></div>
-                <div class="success-message" id="successMessage"></div>
                 <button type="submit" class="login-btn" id="registerBtn">הרשמה</button>
             </form>
-            <p class="auth-link">כבר רשום? <a href="login.html">התחברות</a></p>
+
+            <div class="register-success-panel" id="registerSuccessPanel" aria-live="polite">
+                <h2>✓ ההרשמה הושלמה</h2>
+                <p class="success-intro">כדי להשתמש במערכת, יש לאמת את כתובת האימייל שלך:</p>
+                <p class="success-email" id="registeredEmailDisplay"></p>
+                <ol class="register-success-steps">
+                    <li>בדוק את תיבת הדואר שלך (גם בתיקיית <strong>ספאם</strong> או <strong>קידומי מכירות</strong>).</li>
+                    <li>פתח את המייל מ־StamStam ולחץ על הכפתור <strong>« אימות אימייל »</strong>.</li>
+                    <li>לאחר האימות — חזור לכאן והתחבר עם האימייל והסיסמה שבחרת.</li>
+                </ol>
+                <p class="register-success-note">לא קיבלת מייל? המתן כמה דקות, או נסה להירשם שוב מאותה כתובת — ניתן לשלוח אימות מחדש מדף ההתחברות.</p>
+                <a href="login.html" class="login-btn">מעבר להתחברות</a>
+            </div>
+
+            <p class="auth-link" id="authLink">כבר רשום? <a href="login.html">התחברות</a></p>
         </div>
     </div>
     <script type="module" src="js/register.js"></script>

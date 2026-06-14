@@ -18,10 +18,8 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     const phone = document.getElementById('phoneInput').value.trim();
     const registerBtn = document.getElementById('registerBtn');
     const errorMessage = document.getElementById('errorMessage');
-    const successMessage = document.getElementById('successMessage');
 
     errorMessage.classList.remove('show');
-    successMessage.classList.remove('show');
 
     if (!fullName || fullName.length < 2) {
         showError('אנא הכנס שם מלא');
@@ -41,16 +39,23 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
 
     try {
         await registerUser({ email, password, full_name: fullName, phone });
-        document.getElementById('registerForm').style.display = 'none';
-        successMessage.textContent = 'נרשמת בהצלחה! נשלח אליך אימייל לאימות. לאחר האימות תוכל להתחבר.';
-        successMessage.classList.add('show');
+        showRegistrationSuccess(email);
     } catch (err) {
         showError(err instanceof AuthApiError ? err.message : 'שגיאה בהרשמה');
-    } finally {
         registerBtn.disabled = false;
         registerBtn.textContent = 'הרשמה';
     }
 });
+
+function showRegistrationSuccess(email) {
+    document.getElementById('registerForm').style.display = 'none';
+    const authLink = document.getElementById('authLink');
+    if (authLink) authLink.style.display = 'none';
+    const subtitle = document.querySelector('.login-subtitle');
+    if (subtitle) subtitle.textContent = 'אימות אימייל נדרש';
+    document.getElementById('registeredEmailDisplay').textContent = email;
+    document.getElementById('registerSuccessPanel').classList.add('show');
+}
 
 function showError(message) {
     const errorMessage = document.getElementById('errorMessage');

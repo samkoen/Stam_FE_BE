@@ -6,6 +6,7 @@ import {
     getStoredEmail,
     saveUserSession,
     resendVerificationEmail,
+    sendSupportMessage,
     AuthApiError,
 } from './auth.js';
 
@@ -27,6 +28,84 @@ window.addEventListener('DOMContentLoaded', () => {
         showError('משתמש לא נמצא');
     }
 });
+
+setupSupportModal();
+
+function setupSupportModal() {
+    const overlay = document.getElementById('supportOverlay');
+    const openBtn = document.getElementById('openSupportBtn');
+    const closeBtn = document.getElementById('closeSupportBtn');
+    const sendBtn = document.getElementById('sendSupportBtn');
+    const loginEmail = document.getElementById('emailInput');
+    const supportEmail = document.getElementById('supportEmailInput');
+    const supportPhone = document.getElementById('supportPhoneInput');
+    const supportMessage = document.getElementById('supportMessageInput');
+    const supportStatus = document.getElementById('supportStatus');
+
+    if (!overlay || !openBtn) return;
+
+    const openModal = () => {
+        supportStatus.classList.remove('show', 'error', 'success');
+        supportStatus.textContent = '';
+        if (loginEmail?.value.trim() && supportEmail) {
+            supportEmail.value = loginEmail.value.trim();
+        }
+        overlay.classList.add('show');
+        overlay.setAttribute('aria-hidden', 'false');
+        supportMessage?.focus();
+    };
+
+    const closeModal = () => {
+        overlay.classList.remove('show');
+        overlay.setAttribute('aria-hidden', 'true');
+    };
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn?.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeModal();
+    });
+
+    sendBtn?.addEventListener('click', async () => {
+        const email = supportEmail?.value.trim() || '';
+        const phone = supportPhone?.value.trim() || '';
+        const message = supportMessage?.value.trim() || '';
+        supportStatus.classList.remove('show', 'error', 'success');
+
+        if (!email.includes('@')) {
+            showSupportStatus('אנא הכנס אימייל תקין למענה', true);
+            return;
+        }
+        if (message.length < 10) {
+            showSupportStatus('ההודעה קצרה מדי (לפחות 10 תווים)', true);
+            return;
+        }
+
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'שולח...';
+        try {
+            await sendSupportMessage({ email, message, phone });
+            showSupportStatus('ההודעה נשלחה! נחזור אליך בהקדם.', false);
+            if (supportMessage) supportMessage.value = '';
+            setTimeout(closeModal, 2000);
+        } catch (err) {
+            showSupportStatus(
+                err instanceof AuthApiError ? err.message : 'שגיאה בשליחה',
+                true
+            );
+        } finally {
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'שלח';
+        }
+    });
+}
+
+function showSupportStatus(message, isError) {
+    const el = document.getElementById('supportStatus');
+    if (!el) return;
+    el.textContent = message;
+    el.className = `support-status show ${isError ? 'error' : 'success'}`;
+}
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
