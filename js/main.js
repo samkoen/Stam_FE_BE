@@ -183,6 +183,12 @@ class App {
             this.startCrop();
         });
 
+        if (this.ui.elements.rotateBtn) {
+            this.ui.elements.rotateBtn.addEventListener('click', () => {
+                this.rotateImage90();
+            });
+        }
+
         // Bouton pour appliquer le crop
         this.ui.elements.applyCropBtn.addEventListener('click', () => {
             this.applyCrop();
@@ -223,8 +229,8 @@ class App {
             this.ui.zoomImage(delta);
         }, { passive: false });
 
-        // Zoom pinch (deux doigts) sur mobile
-        this.setupPinchZoom();
+        // Gestes tactiles : pinch-zoom + pan (1 doigt) sur l'image
+        this.setupImageTouchGestures();
 
         // Gestion du chargement de l'image pour appliquer le zoom
         this.ui.elements.displayImage.addEventListener('load', () => {
@@ -332,44 +338,65 @@ class App {
     }
 
     /**
-     * Configure le zoom pinch (deux doigts) sur l'image
+     * Pinch-zoom (2 doigts) et pan (1 doigt) sur l'image résultat — Android WebView.
      */
-    setupPinchZoom() {
-        const container = this.ui.elements.imageZoomContainer;
-        if (!container) return;
+    setupImageTouchGestures() {
+        const viewer = this.ui.elements.imageViewer;
+        if (!viewer) return;
 
+        let panStart = null;
         let pinchInitialDistance = 0;
         let pinchInitialZoom = 0;
 
-        container.addEventListener('touchstart', (e) => {
+        const canScroll = () =>
+            viewer.scrollWidth > viewer.clientWidth + 2
+            || viewer.scrollHeight > viewer.clientHeight + 2;
+
+        viewer.addEventListener('touchstart', (e) => {
             if (e.touches.length === 2) {
+                panStart = null;
                 pinchInitialDistance = Math.hypot(
                     e.touches[1].clientX - e.touches[0].clientX,
                     e.touches[1].clientY - e.touches[0].clientY
                 );
                 pinchInitialZoom = this.ui.zoomLevel;
+                return;
+            }
+            if (e.touches.length === 1 && canScroll()) {
+                pinchInitialDistance = 0;
+                panStart = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY,
+                    scrollLeft: viewer.scrollLeft,
+                    scrollTop: viewer.scrollTop,
+                };
             }
         }, { passive: true });
 
-        container.addEventListener('touchmove', (e) => {
+        viewer.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2 && pinchInitialDistance > 0) {
                 e.preventDefault();
                 const dist = Math.hypot(
                     e.touches[1].clientX - e.touches[0].clientX,
                     e.touches[1].clientY - e.touches[0].clientY
                 );
-                const rawScale = dist / pinchInitialDistance;
-                const scale = Math.pow(rawScale, 0.6);
-                const newZoom = Math.max(0.99, Math.min(20, pinchInitialZoom * scale));
-                this.ui.zoomLevel = newZoom;
+                const scale = Math.pow(dist / pinchInitialDistance, 0.6);
+                this.ui.zoomLevel = Math.max(0.99, Math.min(20, pinchInitialZoom * scale));
                 this.ui.applyZoom();
+                return;
+            }
+            if (e.touches.length === 1 && panStart) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - panStart.x;
+                const dy = e.touches[0].clientY - panStart.y;
+                viewer.scrollLeft = panStart.scrollLeft - dx;
+                viewer.scrollTop = panStart.scrollTop - dy;
             }
         }, { passive: false });
 
-        container.addEventListener('touchend', (e) => {
-            if (e.touches.length < 2) {
-                pinchInitialDistance = 0;
-            }
+        viewer.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) pinchInitialDistance = 0;
+            if (e.touches.length === 0) panStart = null;
         }, { passive: true });
     }
 
@@ -459,6 +486,43 @@ class App {
         this.ui.setDetectLettersButtonEnabled(true);
         this.ui.elements.acceptCropBtn.style.display = 'none';
         this.ui.elements.cancelCropBtn.style.display = 'none';
+    }
+
+    /**
+     * Tourne l'image affichée de 90° (horaire).
+     */
+    async rotateImage90() {
+        const source = this.acceptedCroppedFile || this.croppedFile || this.currentFile;
+        if (!source) return;
+
+        if (this.cropper?.isActive) {
+            this.cancelCrop();
+        }
+
+        try {
+            const rotated = await FileHandler.rotateImage90(source, true);
+            if (this.acceptedCroppedFile || this.croppedFile) {
+                this.acceptedCroppedFile = rotated;
+                this.croppedFile = rotated;
+            } else {
+                this.currentFile = rotated;
+            }
+            this._inferenceResumeToken = null;
+
+            if (this.currentImageUrl?.startsWith('blob:')) {
+                FileHandler.revokeImagePreview(this.currentImageUrl);
+            }
+            this.currentImageUrl = await FileHandler.fileToDisplayUrl(rotated);
+            this.ui.showSelectedImage(this.currentImageUrl);
+            this.ui.setDetectLettersButtonEnabled(true);
+
+            if (this.cropper) {
+                this.cropper.remove();
+                this.cropper = null;
+            }
+        } catch (error) {
+            this.ui.showError('שגיאה בסיבוב: ' + (error?.message || 'שגיאה'));
+        }
     }
 
     /**

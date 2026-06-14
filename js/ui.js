@@ -52,6 +52,7 @@ export class UIManager {
             checkDisclaimer: document.getElementById('checkDisclaimer'),
             expandBtn: document.getElementById('expandBtn'),
             cropBtn: document.getElementById('cropBtn'),
+            rotateBtn: document.getElementById('rotateBtn'),
             downloadBtn: document.getElementById('downloadBtn'),
             imageZoomContainer: document.getElementById('imageZoomContainer'),
             zoomInBtn: document.getElementById('zoomInBtn'),
@@ -143,6 +144,7 @@ export class UIManager {
         this.elements.zoomOutBtn.style.display = 'none';
         this.elements.resetZoomBtn.style.display = 'none';
         this.elements.cropBtn.style.display = 'inline-flex';
+        if (this.elements.rotateBtn) this.elements.rotateBtn.style.display = 'inline-flex';
         this.elements.applyCropBtn.style.display = 'none';
         this.elements.acceptCropBtn.style.display = 'none';
         this.elements.cancelCropBtn.style.display = 'none';
@@ -369,6 +371,7 @@ export class UIManager {
         this.elements.zoomOutBtn.style.display = 'inline-flex';
         this.elements.resetZoomBtn.style.display = 'inline-flex';
         this.elements.cropBtn.style.display = 'none';
+        if (this.elements.rotateBtn) this.elements.rotateBtn.style.display = 'none';
         this.elements.applyCropBtn.style.display = 'none';
         this.elements.acceptCropBtn.style.display = 'none';
         this.elements.cancelCropBtn.style.display = 'none';
@@ -1346,6 +1349,7 @@ export class UIManager {
         this.elements.zoomOutBtn.style.display = 'none';
         this.elements.resetZoomBtn.style.display = 'none';
         this.elements.cropBtn.style.display = 'none';
+        if (this.elements.rotateBtn) this.elements.rotateBtn.style.display = 'none';
         this.resetZoom();
     }
 

@@ -87,8 +87,13 @@ body.layout-app-results-active {
 }
 
 #mainLayout.layout-app-results .left-image-panel .image-viewer {
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
+    height: 0;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    overscroll-behavior: contain;
 }
 
 /* Partie basse : ancrée en bas de l'écran, aussi bas que possible */
@@ -138,11 +143,18 @@ body.layout-app-results-active {
 }
 
 #mainLayout.layout-app-results .right-results-panel .panel-content-scrollable {
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
-    overflow-y: auto;
+    height: 0;
+    overflow-y: scroll !important;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior-y: contain;
+    display: block !important;
+}
+
+.panel-content-inner {
     display: flex;
     flex-direction: column;
 }
@@ -162,6 +174,15 @@ body.layout-app-results-active #detectedTextItem {
 
 /* 3. מקרא tout en bas : réordonner (imageInfo, disclaimer, erreurs, legend) */
 body.layout-app-results-active #panelContentScrollable {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    height: 0 !important;
+    overflow-y: scroll !important;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    display: block !important;
+}
+body.layout-app-results-active #panelContentInner {
     display: flex !important;
     flex-direction: column !important;
 }
@@ -195,7 +216,14 @@ body.layout-app-results-active .diff-context {
     #rightResultsPanel .panel-header .panel-title,
     #panelTitleRight { display: none !important; }
     #detectedTextItem { display: none !important; }
-    #panelContentScrollable { display: flex !important; flex-direction: column !important; }
+    #panelContentScrollable {
+        flex: 1 1 0 !important;
+        min-height: 0 !important;
+        overflow-y: scroll !important;
+        touch-action: pan-y;
+        display: block !important;
+    }
+    #panelContentInner { display: flex !important; flex-direction: column !important; }
     #imageInfo { order: 0 !important; }
     #checkDisclaimer { order: 1 !important; }
     #differencesInfo { order: 2 !important; }

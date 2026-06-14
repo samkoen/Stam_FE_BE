@@ -53,6 +53,9 @@
                                 <button class="btn-icon" id="cropBtn" title="חתוך תמונה" style="display: none;">
                                     ✂️
                                 </button>
+                                <button class="btn-icon" id="rotateBtn" title="סובב 90°" style="display: none;">
+                                    ↻
+                                </button>
                                 <button class="btn-icon" id="applyCropBtn" title="החל חיתוך" style="display: none;">
                                     ✓
                                 </button>
@@ -94,7 +97,7 @@
                     </div>
 
                     <div class="panel-footer-left">
-                        <p class="upload-tip" aria-hidden="true">לקבלת תוצאות טובות, יש להציג תמונה ישרה עם כמה שפחות שוליים. ניתן לחתוך את השוליים בעזרת אייקון המספריים.</p>
+                        <p class="upload-tip" aria-hidden="true">לקבלת תוצאות טובות, יש להציג תמונה ישרה עם כמה שפחות שוליים. ניתן לסובב (↻) או לחתוך שוליים (✂️).</p>
                         <div class="action-buttons">
                             <button class="btn btn-success" id="detectLettersBtn" disabled>
                                 <span class="btn-text">בדוק פרשה</span>
@@ -145,6 +148,7 @@
                     </div>
 
                     <div class="panel-content-scrollable" id="panelContentScrollable">
+                        <div class="panel-content-inner" id="panelContentInner">
                         <div class="image-quality-warning" id="imageQualityWarning" style="display: none;">
                             <p class="quality-warning-text"></p>
                         </div>
@@ -204,6 +208,7 @@
                         </div>
                         
                         <div class="differences-section" id="differencesInfo" style="display: none;">
+                        </div>
                         </div>
                     </div>
                 </div>

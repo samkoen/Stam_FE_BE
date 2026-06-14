@@ -389,6 +389,8 @@ body {
     min-height: 0;
     background: var(--bg-primary);
     padding: var(--spacing-md);
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
 }
 
 .panel-content-scrollable::-webkit-scrollbar {

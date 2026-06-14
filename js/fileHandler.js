@@ -108,6 +108,54 @@ export class FileHandler {
     }
 
     /**
+     * Tourne une image de 90° (horaire par défaut).
+     * @param {File|Blob} file
+     * @param {boolean} clockwise
+     * @returns {Promise<File>}
+     */
+    static async rotateImage90(file, clockwise = true) {
+        const bitmap = await createImageBitmap(file);
+        const canvas = document.createElement('canvas');
+        const w = bitmap.width;
+        const h = bitmap.height;
+        canvas.width = h;
+        canvas.height = w;
+        const ctx = canvas.getContext('2d');
+        if (clockwise) {
+            ctx.translate(h, 0);
+            ctx.rotate(Math.PI / 2);
+        } else {
+            ctx.translate(0, w);
+            ctx.rotate(-Math.PI / 2);
+        }
+        ctx.drawImage(bitmap, 0, 0);
+        bitmap.close();
+        const blob = await new Promise((resolve, reject) => {
+            canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('rotate failed'))), 'image/jpeg', 0.92);
+        });
+        const name = (file.name || 'image.jpg').replace(/\.[^.]+$/, '') + '.jpg';
+        return new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() });
+    }
+
+    /**
+     * URL d'affichage pour un File (WebView native → fichier cache).
+     * @param {File} file
+     * @returns {Promise<string>}
+     */
+    static async fileToDisplayUrl(file) {
+        let platform = 'web';
+        try { platform = Capacitor.getPlatform(); } catch (_) { /* ignore */ }
+        if (platform !== 'web') {
+            const buf = await file.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            return FileHandler.base64ToDisplayUrl(btoa(binary));
+        }
+        return FileHandler.createImagePreview(file);
+    }
+
+    /**
      * Télécharge une image depuis une base64
      * @param {string} base64Image - Image en base64
      * @param {string} filename - Nom du fichier
