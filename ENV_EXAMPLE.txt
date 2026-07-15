@@ -6,6 +6,7 @@
 VITE_API_URL=http://localhost:8000
 
 # Vercel + backend sur Hugging Face : mettre l'URL du Space (sans slash final)
-# VITE_API_URL=https://VOTRE-USERNAME-stam-be.hf.space
-# VITE_HF_TOKEN=hf_xxxx  (optionnel, si le Space HF est protégé par token)
+# VITE_API_URL=https://samkoen-stam-be.hf.space
+# Space HF privé uniquement : token HF avec accès au Space (sinon laisser vide si Space public)
+# VITE_HF_TOKEN=hf_xxxx
 

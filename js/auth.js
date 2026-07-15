@@ -20,9 +20,11 @@ async function authFetch(path, options = {}) {
     if (config.hfToken) {
         headers['Authorization'] = `Bearer ${config.hfToken}`;
     }
+    // Pas de credentials:include — incompatible avec le proxy CORS HF (pas de Allow-Credentials).
+    // Session côté FE via localStorage ; cookie httpOnly optionnel en same-origin uniquement.
     const res = await fetch(url, {
         ...options,
-        credentials: 'include',
+        credentials: 'omit',
         headers,
     });
     if (!res.ok) {
