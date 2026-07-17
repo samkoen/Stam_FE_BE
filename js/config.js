@@ -22,6 +22,14 @@ export const config = {
     API_URL: `${API_BASE_URL}/api/process-image`,
     API_DETECT_LETTERS: `${API_BASE_URL}/api/detect-letters`,
     API_EXPORT_PDF: `${API_BASE_URL}/api/export-pdf`,
+    API_HEALTH: `${API_BASE_URL}/health`,
+
+    /** Timeout POST בדוק (ms) — inclut cold start HF GPU */
+    DETECT_TIMEOUT_MS: 300000,
+    /** Timeout ping réveil serveur (ms) */
+    WAKE_TIMEOUT_MS: 180000,
+    /** Ne pas re-pinger si un wake réussi est plus récent (ms) */
+    WAKE_TTL_MS: 300000,
     
     // Formats de fichiers acceptés
     ACCEPTED_FORMATS: ['image/jpeg', 'image/jpg', 'image/png'],
@@ -39,6 +47,9 @@ export const config = {
         ERROR_FORMAT: 'פורמט קובץ לא נתמך',
         ERROR_SIZE: 'הקובץ גדול מדי',
         ERROR_NETWORK: 'שגיאת חיבור לשרת',
+        /** Cold start HF / timeout réseau pendant le réveil */
+        ERROR_SERVER_WAKING:
+            'השרת מתעורר או שאינו זמין כרגע. נסו שוב בעוד דקה.',
         IMAGE_QUALITY_WARNING: 'התמונה בעייתית (אינה ברורה מספיק או חתוכה בצורה לא טובה). אנא צלם שוב תמונה ברורה וישרה.',
         /** טקסט המעלה שונה מתוכן התמונה — לא הורצה השוואת אותיות מול המעלה שנבחר */
         REFERENCE_MISMATCH_ANALYSIS_SKIPPED:

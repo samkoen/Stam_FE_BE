@@ -486,6 +486,9 @@ class App {
         this.ui.setDetectLettersButtonEnabled(true);
         this.ui.elements.acceptCropBtn.style.display = 'none';
         this.ui.elements.cancelCropBtn.style.display = 'none';
+
+        // Réveiller le Space HF pendant crop / vérif (cold start GPU)
+        ApiService.wakeUpServer().catch(() => {});
     }
 
     /**
@@ -618,9 +621,20 @@ class App {
             this.ui.elements.panelTitle.textContent = 'זיהוי אותיות';
         } catch (error) {
             exitAppResultsLayout();
-            const msg = (error?.message || '').toLowerCase();
-            const isNetwork = !error?.message || msg.includes('fetch') || msg.includes('network') || msg.includes('failed') || msg.includes('abort') || msg.includes('connection') || msg.includes('refused') || msg.includes('load');
-            this.ui.showError(isNetwork ? config.MESSAGES.ERROR_NETWORK : (error.message || 'שגיאה בזיהוי האותיות'));
+            const raw = error?.message || '';
+            const msg = raw.toLowerCase();
+            const isWaking = raw === config.MESSAGES.ERROR_SERVER_WAKING
+                || msg.includes('מתעורר');
+            const isNetwork = !raw || msg.includes('fetch') || msg.includes('network')
+                || msg.includes('failed') || msg.includes('abort') || msg.includes('connection')
+                || msg.includes('refused') || msg.includes('load') || msg.includes('חיבור');
+            if (isWaking) {
+                this.ui.showError(config.MESSAGES.ERROR_SERVER_WAKING);
+            } else if (isNetwork) {
+                this.ui.showError(config.MESSAGES.ERROR_SERVER_WAKING || config.MESSAGES.ERROR_NETWORK);
+            } else {
+                this.ui.showError(raw || 'שגיאה בזיהוי האותיות');
+            }
         } finally {
             this.ui.showLoading(false);
         }
