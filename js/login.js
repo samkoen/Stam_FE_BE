@@ -9,12 +9,15 @@ import {
     sendSupportMessage,
     AuthApiError,
 } from './auth.js';
+import { ApiService } from './api.js';
 
 window.addEventListener('DOMContentLoaded', () => {
     if (getStoredEmail()) {
         window.location.href = 'index.html';
         return;
     }
+    // Réveiller HF pendant saisie login / avant הרשמה
+    ApiService.wakeUpServer().catch(() => {});
     const params = new URLSearchParams(window.location.search);
     const verified = params.get('verified');
     const verifyError = params.get('verify_error');

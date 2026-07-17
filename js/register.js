@@ -2,11 +2,15 @@
  * Page d'inscription
  */
 import { registerUser, getStoredEmail, AuthApiError } from './auth.js';
+import { ApiService } from './api.js';
 
 window.addEventListener('DOMContentLoaded', () => {
     if (getStoredEmail()) {
         window.location.href = 'index.html';
+        return;
     }
+    // Réveiller HF pendant que l'utilisateur remplit le formulaire
+    ApiService.wakeUpServer().catch(() => {});
 });
 
 document.getElementById('registerForm').addEventListener('submit', async (e) => {

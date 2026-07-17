@@ -2,6 +2,7 @@
  * Module d'authentification — communication avec /api/auth
  */
 import { config } from './config.js';
+import { ApiService } from './api.js';
 
 export class AuthApiError extends Error {
     constructor(message, status) {
@@ -11,6 +12,8 @@ export class AuthApiError extends Error {
 }
 
 async function authFetch(path, options = {}) {
+    // Attendre un wake déjà lancé (page register/login) avant l'appel auth
+    await ApiService.wakeUpServer();
     const url = `${config.API_BASE_URL}${path}`;
     const method = (options.method || 'GET').toUpperCase();
     const headers = { ...(options.headers || {}) };
